@@ -2,8 +2,10 @@
 
 A quality-of-life module for the **Legend in the Mist** system on Foundry Virtual Tabletop.
 
-Manifest URL: https://github.com/smeeth123/litm-smeeth-qol/releases/latest/download/module.json
-
+Manifest URL: 
+`
+https://github.com/smeeth123/litm-smeeth-qol/releases/latest/download/module.json
+`
 Smeeth’s QoL adds guided Hero and theme-development workflows, cooperative multiplayer rolls, expanded roll options, improved chat cards, and automatic tag, status, and Promise bookkeeping.
 
 ## Requirements
