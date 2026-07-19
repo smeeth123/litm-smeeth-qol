@@ -6,6 +6,7 @@ Manifest URL:
 `
 https://github.com/smeeth123/litm-smeeth-qol/releases/latest/download/module.json
 `
+
 Smeeth’s QoL adds guided Hero and theme-development workflows, cooperative multiplayer rolls, expanded roll options, improved chat cards, and automatic tag, status, and Promise bookkeeping.
 
 ## Requirements
