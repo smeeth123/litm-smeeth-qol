@@ -14,7 +14,7 @@ Enable **Legend in the Mist – Smeeth’s QoL** in your world and reload the GM
 
 The manifest above follows published GitHub releases. Updating the source on `main` does not change the release download until a new release is published.
 
-Smeeth’s QoL adds guided Hero and theme-development workflows, cooperative multiplayer rolls, expanded roll options, improved chat cards, and automatic tag, status, and Promise bookkeeping.
+Smeeth’s QoL adds guided Hero and theme-development workflows, improved cooperative multiplayer rolls, expanded roll options, improved chat cards, and automatic tag, status, and Promise bookkeeping.
 
 ## Requirements
 
@@ -24,12 +24,6 @@ Smeeth’s QoL adds guided Hero and theme-development workflows, cooperative mul
 
 Socketlib is required for enhanced native **Request Help**, **Acting Together**, and synchronized Power/tag bookkeeping.
 
-
-## Forge and hosted games
-
-Version 1.0.20 resolves system integrations from Mist Engine’s actual loaded entry script, including Forge’s versioned CDN URLs. This prevents Trade Power and cooperative roll integrations from patching a separate copy of the system classes.
-
-After updating on Forge, restart the hosted game and reload every connected client. Trade Power appears in **Detailed** roll dialogs. Socketlib must be installed and enabled in the world for multiplayer bookkeeping.
 
 ## Core Automation
 
