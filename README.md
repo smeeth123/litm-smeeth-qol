@@ -25,32 +25,7 @@ Smeeth’s QoL adds guided Hero and theme-development workflows, cooperative mul
 Socketlib is required for enhanced native **Request Help**, **Acting Together**, and synchronized Power/tag bookkeeping.
 
 
-
-## Settings
-
-Find these under **Configure Settings → Legend in the Mist – Smeeth’s QoL**:
-
-| Setting | Who configures it | Effect |
-| --- | --- | --- |
-| **Theme Browser Sources → Choose Sources** | GM | Select World Items and individual compendiums separately for Themebooks and Themekits. Applies to the whole world. |
-| **Dark Chat Cards (Experimental)** | Each user | Optional dark surroundings, Labrada fonts, and gold accents. Off by default; changes apply immediately. Parchment result panels retain their native appearance. |
-
-## Changes since 1.0.0
-
-The 1.0.19 source includes:
-
-- Integration with the native Request Help and Acting Together tools, including relationship tags and correct burn, weakness, single-use, and Fellowship bookkeeping.
-- Trade Power integrated with native approval and Power spending, native Sacrifice consequence actions, and reversible Push Your Luck.
-- Single-use story tags through native Spend/Undo, concise chat cards, and directly visible tag/status lists.
-- Fellowship themecard live refresh, reliable manual Promise overflow, and preserved character-sheet scroll positions.
-- Updated Themebook/Themekit browsers with GM-controlled sources, native matching/search options, and rich previews.
-- Optional dark chat cards that preserve parchment panels, with centered dice totals.
-
 ## Core Automation
-
-### Character Sheet Scroll
-
-Full and compact character sheets preserve their current scroll position when Promise, tags, and other actor data change, including shared Fellowship updates. Character, Other, Biography, and Notes tabs are included.
 
 ### Single-Use Story Tags
 
