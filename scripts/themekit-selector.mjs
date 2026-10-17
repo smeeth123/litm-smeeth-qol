@@ -1,10 +1,11 @@
+import { importSystemModule } from "./system-imports.mjs";
 import { chooseThemeDocument } from "./theme-browser.mjs";
 
 const MODULE_ID = "litm-smeeth-qol";
 const PATCH_FLAG = Symbol.for(`${MODULE_ID}.themekitSelectorPatched`);
 
 async function applyThemekit(actor, actorThemebook, themekit) {
-  const { ThemeKitAdapter } = await import("/systems/mist-engine-fvtt/module/lib/themekit-adapter.mjs");
+  const { ThemeKitAdapter } = await importSystemModule("lib/themekit-adapter.mjs");
   const adapter = new ThemeKitAdapter();
   if (!actorThemebook) {
     await adapter.importThemekitToCharacter(actor, themekit);
@@ -33,7 +34,7 @@ export async function openQolThemekitSelector(actor, actorThemebook = null, { th
 }
 
 async function patchNativeSelector() {
-  const { ThemekitSelectionApp } = await import("/systems/mist-engine-fvtt/module/apps/themekit-selection-app.mjs");
+  const { ThemekitSelectionApp } = await importSystemModule("apps/themekit-selection-app.mjs");
   if (ThemekitSelectionApp.prototype[PATCH_FLAG]) return;
   Object.defineProperty(ThemekitSelectionApp.prototype, PATCH_FLAG, { value: true });
   ThemekitSelectionApp.prototype.render = function renderQolThemekitSelector() {

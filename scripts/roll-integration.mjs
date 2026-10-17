@@ -1,3 +1,4 @@
+import { importSystemModule } from "./system-imports.mjs";
 import { installSingleUseRolls } from "./single-use-tags.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const SYSTEM_ID = "mist-engine-fvtt";
@@ -244,8 +245,8 @@ Hooks.once("ready", async () => {
   if (game.system.id !== SYSTEM_ID) return;
   try {
     const [{ DiceRollApp }, { SPEND_OPTIONS, renderDetailedCard }] = await Promise.all([
-      import("/systems/mist-engine-fvtt/module/apps/dice-roll-app.mjs"),
-      import("/systems/mist-engine-fvtt/module/lib/detailed-spend.mjs")
+      importSystemModule("apps/dice-roll-app.mjs"),
+      importSystemModule("lib/detailed-spend.mjs")
     ]);
     installTradePower(DiceRollApp, SPEND_OPTIONS, renderDetailedCard);
   } catch (error) {

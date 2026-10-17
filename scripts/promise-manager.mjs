@@ -1,3 +1,4 @@
+import { importSystemModule } from "./system-imports.mjs";
 export const MODULE_ID = "litm-smeeth-qol";
 export const PROMISE_OVERFLOW_FLAG = "promiseOverflow";
 
@@ -167,7 +168,7 @@ Hooks.on("renderActorSheet", decoratePromiseTracker);
 Hooks.once("ready", async () => {
   if (game.system.id !== "mist-engine-fvtt") return;
   try {
-    const { MistEngineLegendInTheMistCharacterSheet } = await import("/systems/mist-engine-fvtt/module/sheets/litm-character-sheet.mjs");
+    const { MistEngineLegendInTheMistCharacterSheet } = await importSystemModule("sheets/litm-character-sheet.mjs");
     installManualPromiseClicks(MistEngineLegendInTheMistCharacterSheet);
   } catch (error) {
     console.error(`${MODULE_ID} | Manual Promise integration failed.`, error);

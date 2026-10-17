@@ -1,3 +1,4 @@
+import { importSystemModule } from "./system-imports.mjs";
 const PATCHED = Symbol.for("litm-smeeth-qol.characterScroll");
 const pending = new WeakMap();
 const TABS = ["character", "other", "biography", "notes"];
@@ -60,7 +61,7 @@ Hooks.on("renderApplicationV2", finishCharacterScroll);
 Hooks.once("ready", async () => {
   if (game.system.id !== "mist-engine-fvtt") return;
   try {
-    const { MistEngineLegendInTheMistCharacterSheet } = await import("/systems/mist-engine-fvtt/module/sheets/litm-character-sheet.mjs");
+    const { MistEngineLegendInTheMistCharacterSheet } = await importSystemModule("sheets/litm-character-sheet.mjs");
     installCharacterScroll(MistEngineLegendInTheMistCharacterSheet);
   } catch (error) {
     console.error("litm-smeeth-qol | Character sheet scroll preservation failed.", error);

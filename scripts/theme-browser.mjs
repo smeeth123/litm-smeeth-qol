@@ -1,3 +1,4 @@
+import { importSystemModule } from "./system-imports.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const SETTING = "themeBrowserWorldSources";
 const openBrowsers = new Set();
@@ -133,7 +134,7 @@ export function matchesBrowserSearch(item, query, fields) {
 let richText;
 async function enrich(value, item) {
   if (!value) return "";
-  richText ??= import("/systems/mist-engine-fvtt/module/lib/tag-status-text-helper.mjs");
+  richText ??= importSystemModule("lib/tag-status-text-helper.mjs");
   const { enrichTextWithTags } = await richText;
   return enrichTextWithTags(String(value), item);
 }

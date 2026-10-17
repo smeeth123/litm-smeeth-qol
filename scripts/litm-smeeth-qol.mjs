@@ -1,3 +1,4 @@
+import { importSystemModule } from "./system-imports.mjs";
 import "./chat-theme.mjs";
 import "./sheet-scroll.mjs";
 import "./fellowship-sync.mjs";
@@ -1277,7 +1278,7 @@ function applyReactionTenPlusBonus(message, data) {
 async function patchDiceRollOpeningReset() {
   if (game.system.id !== "mist-engine-fvtt") return;
 
-  const { DiceRollApp } = await import("/systems/mist-engine-fvtt/module/apps/dice-roll-app.mjs");
+  const { DiceRollApp } = await importSystemModule("apps/dice-roll-app.mjs");
   const proto = DiceRollApp?.prototype;
   if (!proto || proto._litmQolOpeningResetPatched) return;
 

@@ -1,3 +1,4 @@
+import { importSystemModule } from "./system-imports.mjs";
 import { recordForTag } from "./single-use-tags.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const isCharacterActor = actor => ["character", "litm-character"].includes(actor?.type);
@@ -826,10 +827,10 @@ Hooks.once("ready", async () => {
   if (game.system.id !== "mist-engine-fvtt") return;
   try {
     const [{ Collaboration }, { DiceRollApp }, { GroupActionApp }, { RollConfirmation }] = await Promise.all([
-      import("/systems/mist-engine-fvtt/module/lib/collaboration.mjs"),
-      import("/systems/mist-engine-fvtt/module/apps/dice-roll-app.mjs"),
-      import("/systems/mist-engine-fvtt/module/apps/group-action-app.mjs"),
-      import("/systems/mist-engine-fvtt/module/lib/roll-confirmation.mjs")
+      importSystemModule("lib/collaboration.mjs"),
+      importSystemModule("apps/dice-roll-app.mjs"),
+      importSystemModule("apps/group-action-app.mjs"),
+      importSystemModule("lib/roll-confirmation.mjs")
     ]);
     installCooperativeRolls(Collaboration, DiceRollApp, GroupActionApp);
     installGroupConfirmation(RollConfirmation);
