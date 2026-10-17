@@ -1,6 +1,7 @@
 # Legend in the Mist – Smeeth’s QoL
 
 A quality-of-life module for the **Legend in the Mist** system on Foundry Virtual Tabletop.
+<img width="1728" height="1117" alt="Screenshot 2026-10-17 at 2 47 09 PM" src="https://github.com/user-attachments/assets/b053e2b0-20f4-479e-be1a-ceefb2b84202" />
 
 ## Installation
 
@@ -11,8 +12,6 @@ https://github.com/smeeth123/litm-smeeth-qol/releases/latest/download/module.jso
 ```
 
 Enable **Legend in the Mist – Smeeth’s QoL** in your world and reload the GM and player clients after updating.
-
-The manifest above follows published GitHub releases. Updating the source on `main` does not change the release download until a new release is published.
 
 Smeeth’s QoL adds guided Hero and theme-development workflows, improved cooperative multiplayer rolls, expanded roll options, improved chat cards, and automatic tag, status, and Promise bookkeeping.
 
@@ -31,11 +30,7 @@ Socketlib is required for enhanced native **Request Help**, **Acting Together**,
 
 On a successful Detailed roll, use the native **Single-Use** spending button when exactly 1 Power remains. Enter a tag name to create the tag and spend that Power together. Canceling does neither.
 
-Tags appear in the Hero’s Tags and Statuses section with a single-use label. They cannot be burned and are removed only after a completed roll actually invokes them, including approved module Help/Group contributions. Ordinary chat, canceled rolls, and rejected approval do not consume them. Tags carry stable IDs, so duplicate names, renaming, and array reordering cannot redirect cleanup.
-
-Undo removes an unused tag and refunds its allocation. Once a completed roll has invoked the tag, that allocation cannot be refunded. Native Spend and Undo remain the single spending ledger; operations are serialized through the active Narrator when connected.
-
-Existing unambiguous tags receive IDs on reload. If old name-only records match multiple entries, the sheet offers **Identify legacy single-use tags** instead of guessing which tag to remove.
+Tags appear in the Hero’s Tags and Statuses section with a single-use label. They cannot be burned and are removed only after a completed roll actually invokes them, including approved module Help/Group contributions. Undo removes an unused tag and refunds its allocation.
 
 ### Reduce Status
 
@@ -43,9 +38,9 @@ Right-clicking a status adds a **Reduce Status** option. Entering a number shift
 
 ### Fellowship Tags
 
-Normal relationship-tag scratching is handled by the system’s native roll cleanup; the module does not duplicate it. The module still scratches contributed relationship tags on their original Heroes in enhanced Help/Group rolls. Invoked Fellowship Themecard powers in ordinary Quick, Detailed, Reaction, and Group rolls are scratched only after their result message is created, using saved source references and retry-safe bookkeeping. Unrelated chat, cancellation, and rejected rolls cannot trigger scratching. Native weakness Improve remains intact.
+Invoked Fellowship Themecard tags in ordinary Quick, Detailed, Reaction, and Group rolls are scratched after their result message is created.
 
-Open full and compact character sheets refresh automatically when their linked Fellowship Themecard changes, including selection, scratching/recovery, tags, trackers, and names. This works after closing/reopening and on every connected client receiving the document update. Refreshes replace stale cached references after assignment changes or deletion, preserve closed/minimized sheets, and coalesce rapid updates. No extra socket messages or document writes are used for display refresh.
+Open full and compact character sheets refresh automatically when their linked Fellowship Themecard changes, including selection, scratching/recovery, tags, trackers, and names.
 
 ### Roll Dialog Reset
 
@@ -62,17 +57,11 @@ This prevents values from canceled or previous rolls from carrying forward.
 
 The module replaces the native Themekit selector with a searchable, scrollable two-panel browser. The same browser serves Themebook selection in Hero Creator and Replace Theme.
 
-The GM configures sources under **Configure Settings → Legend in the Mist – Smeeth's QoL → Theme Browser Sources → Choose Sources**. Select **World Items** and individual visible Item compendiums independently for Themebooks and Themekits, then **Save Sources**. **All** and **None** apply to their own column; saving no selections disables sources for that browser. These world settings apply to everyone and refresh open browsers when changed. Source controls are absent from the browsers themselves. Themekit availability also respects the system's source-pack restrictions and Include World Items setting; sources excluded there are omitted from the module menu. Hidden packs and documents are excluded. Before the GM saves a configuration, all currently permitted sources are available. The previous per-client source preferences are no longer used.
+The GM configures sources under **Configure Settings → Legend in the Mist – Smeeth's QoL → Theme Browser Sources → Choose Sources**. Select **World Items** and individual visible Item compendiums independently for Themebooks and Themekits, then **Save Sources**. These world settings apply to everyone and refresh open browsers when changed.
 
-When assigning a kit from an existing Themebook, matching is trimmed and case-insensitive, using the book's name and the kit's theme type. Legacy kits with no theme type remain visible. **Show all Themekits** removes that filter. Hero Creator and replacement drafts start without a name filter.
+When assigning a kit from an existing Themebook, matching is trimmed and case-insensitive, using the book's name and the kit's theme type.
 
-Search always includes names. Toggles add descriptions, power tags/questions, weakness tags/questions, Special Improvements, Quest, and Story; all are enabled initially to retain broad searching. Search controls remain in place while selecting previews. A selection hidden by a filter is cleared before it can be confirmed.
-
-Themekits are grouped by Might (Origin, Adventure, Greatness, Variable, Other), then theme type. Previews include descriptions, tags or questions, Quest, Story, Special Improvements, native tag/status markup, and document links. Each preview identifies its World or compendium source. Themekit Add, Assign, population, and merge continue through the system's native adapter.
-
-Only selected sources are queried, using the requested Item type. One failed compendium does not hide results from other sources; **Retry sources** reloads them. Source and preview requests ignore obsolete responses after a GM source-setting change or closing the browser. Story Theme items are excluded from Themebook choices.
-
-Selector content is read dynamically from the user’s installed world and compendiums; it is not bundled with this module.
+Themekits are grouped by Might (Origin, Adventure, Greatness, Variable, Other), then theme type. Previews include descriptions, tags or questions, Quest, Story, Special Improvements, native tag/status markup, and document links. Each preview identifies its World or compendium source. Selector content is read dynamically from the user’s installed world and compendiums; it is not bundled with this module.
 
 ## Hero Creator
 
@@ -151,7 +140,7 @@ The player can:
 3. Change either theme type or Might.
 4. Revise active power and weakness tags.
 5. Revise the Quest.
-6. Trade eligible surplus tags, weaknesses, or Special Improvements.
+6. Trade eligible tags, weaknesses, or Special Improvements.
 7. Complete one Improvement workflow for each trade.
 8. Confirm the evolved theme and reset Milestones.
 
@@ -179,7 +168,7 @@ Promise earned beyond the visible maximum of 5 is preserved instead of lost. Sto
 This applies to manual counter clicks and Promise earned through Improve, Replace, Evolve, and other automated workflows.
 
 - **Left-click:** Gain 1 Promise. The visible counter stops at 5; further awards are stored.
-- **Right-click:** Remove 1 Promise, from stored overflow first and then the visible counter. The total cannot go below zero.
+- **Right-click:** Remove 1 Promise, from stored overflow first and then the visible counter.
 - The counter shows **+N stored** when overflow exists, on both full and compact sheets.
 - Manual awards, automated awards, corrections, and fulfillment share a per-Hero queue through the active Narrator (or the owning client when no Narrator is connected). Rapid clicks and simultaneous GM/player awards are applied sequentially.
 - Completing a Moment of Fulfillment spends 5 and applies stored Promise afterward.
@@ -217,13 +206,13 @@ Shake the Foundations of Magic, Speak Words Eternal, and Unearth Lost Truths pro
 
 ## Cooperative Rolls
 
-Socketlib remains required. The module enhances the native **Request Help** and **Acting Together** entry points; its separate Ask for Help and Group Action buttons have been removed from roll dialogs.
+Socketlib required. The module enhances the native **Request Help** and **Acting Together** entry points.
 
 ### Request Help
 
 Use **Request Help** beside Roll in the normal Quick, Detailed, or Reaction dialog. Choose active players with assigned Heroes; helpers accept or decline, select a tag from their sheet (or the available-tag selector on that sheet), and confirm it. The requester sees response statuses, and the Narrator reviews contributions and may add participant weaknesses before applying them.
 
-Eligible contributions include active theme power tags, unexpired backpack tags, positive floating story tags, single-use story tags, and unscratched Fellowship relationship tags. Sources with identical names remain separate choices. Planned, burned, scratched, and expired entries are unavailable. A player cannot contribute through two accounts assigned the same Hero.
+Eligible contributions include active theme power tags, unexpired backpack tags, positive floating story tags, single-use story tags, and unscratched Fellowship relationship tags. Planned, burned, scratched, and expired entries are unavailable.
 
 - Help contributes +1 Power and cannot be burned.
 - Relationships contribute +1 and scratch the original relationship only after a completed roll invokes them; they cannot be burned.
@@ -239,14 +228,12 @@ Open **Acting Together** from the system’s Mist toolbar. This native tool is a
 
 1. Choose **Detailed** or **Quick**, then **Start Group Action** and select participants. Players can include themselves.
 2. Each participating Hero offers one tag. The Narrator reviews the offers, may approve one burn for 3 Power, and may add weaknesses. Relationships and single-use tags cannot be burned.
-3. The Narrator reviews the contributions and modifier, and may invoke any relevant Fellowship theme power tags in addition to the Heroes’ contributions. No Hero leads or owns the group action.
+3. The Narrator reviews the contributions and modifier, and may invoke any relevant Fellowship theme power tags in addition to the Heroes’ contributions.
 4. **Roll for Group** opens the normal roll dialog with the approved contributions. Detailed actions retain Trade Power, the native spending tracker, and Push Your Luck. The group result identifies participants and states that its outcome affects everyone.
 
-Heroes’ unrelated sheet selections are excluded from the group roll and left unchanged. The roll dialog, final Narrator confirmation, and chat message identify **Acting Together**, and the outcome affects the entire group. The final confirmation identifies the submitting player without presenting a Hero as the acting character. When group Power creates a single-use tag, choose the receiving Hero for that expenditure; Undo tracks that same Hero. Each Hero may contribute up to one tag representing their most significant contribution to the joint effort; relationship tags count toward this maximum. Relevant Fellowship theme power tags are additional shared contributions and do not count toward that limit. Removing a personal contribution from the native list also removes that Hero’s added weaknesses; the Hero remains part of the group affected by the outcome. **Choose Participants Again** restarts collection without spending resources.
+Invoked Fellowship theme power tags are scratched on their original shared theme after the roll completes.
 
-Invoked Fellowship theme power tags are scratched on their original shared theme after the roll completes. Uninvoked tags and canceled rolls are unaffected; safe retries do not scratch tags recovered after an earlier roll.
-
-Group burns, relationship scratches, single-use consumption, and weakness Improve apply to their original sources after the completed result message exists. Ordinary chat, Sacrifice, rejection, and cancellation do not trigger cooperative bookkeeping. Stale burn/weakness/relationship sources stop execution before dice are rolled.
+Group burns, relationship scratches, single-use consumption, and weakness Improve apply to their original sources after the completed result message exists.
 
 ## Expanded Roll Options
 
@@ -257,13 +244,13 @@ Detailed rolls include two mutually exclusive options:
 - **Throw Caution to the Wind:** At final Power 2 or less, apply −1 Power to the roll. On success, add 1 to the normal Detailed-roll Power available to spend.
 - **Hedge Your Risks:** At final Power 2 or more, apply +1 Power to the roll. On success, reduce the original spendable Power by 1.
 
-Both options respect the Detailed-roll minimum of 1 spendable Power. The resulting card displays the final total directly and explains the calculation in a tooltip. The native Power-spending tracker, Spend/Undo, and reloads use that same total. Trade selections survive Narrator approval without a timeout; changes to tags, modifiers, Might, or helpers are checked again before submission. Trade Power appears only in Detailed rolls.
+Both options respect the Detailed-roll minimum of 1 spendable Power. The resulting card displays the final total directly and explains the calculation in a tooltip. The native Power-spending tracker, Spend/Undo, and reloads use that same total.
 
 ### Make a Sacrifice
 
-Use the system's **Sacrifice** button on the full or compact Hero sheet in Game Mode. The native dialog selects the Sacrifice level and Narrator modifier and handles the dice and Miracle, Fate, or In Vain result. Sacrifice is separate from the Quick-roll dialog.
+Use the system's **Sacrifice** button on the full or compact Hero sheet in Game Mode. The native dialog selects the Sacrifice level and Narrator modifier and handles the dice and Miracle, Fate, or In Vain result.
 
-The module adds consequence buttons to native Sacrifice result cards: scratch one power tag, scratch all power tags in a theme, replace a theme, or create a harmful tier-6 status. These actions do not invoke selected tags or consume help contributions. Completed consequences are marked on the message to prevent applying them again through its button.
+The module adds consequence buttons to native Sacrifice result cards: scratch one power tag, scratch all power tags in a theme, replace a theme, or create a harmful tier-6 status.
 
 ### Reaction Rolls
 
@@ -287,7 +274,7 @@ Result cards show a concise outcome and directly visible tag/status lists. Spend
 - Reaction results retain their Power counter and 10+ bonus.
 - Trade Power retains its rolled-Power note and corrected spending total.
 - Native Sacrifice results retain the module’s consequence buttons.
-- Detailed 10+ results offer **Push Your Luck (+1 Power)**. Clicking accepts Narrator-assigned Consequences and adds 1 spendable Power. Click again to undo the bonus; if all Power is allocated, undo at least 1 Power of spending first. At most one bonus can be active per roll. The toggle state and budget survive reloads. Quick 10+ results retain the Great Success reminder.
+- Detailed 10+ results offer **Push Your Luck (+1 Power)**. Clicking accepts Narrator-assigned Consequences and adds 1 spendable Power. Click again to undo the bonus; if all Power is allocated, undo at least 1 Power of spending first.
 
 ## Legal Notice
 
