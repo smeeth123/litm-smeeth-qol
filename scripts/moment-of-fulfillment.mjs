@@ -567,15 +567,6 @@ function renderMomentButton(app, html) {
   if (!actor || !root || !["character", "litm-character"].includes(actor.type) || (!actor.isOwner && !game.user.isGM)) return;
   if (actor.getFlag(MODULE_ID, RETIREMENT_FLAG)) return;
   for (const tracker of root.querySelectorAll(".fellowship-promises-container")) {
-    if (!tracker.dataset.litmQolOverflowBound) {
-      tracker.dataset.litmQolOverflowBound = "true";
-      tracker.addEventListener("click", event => {
-        if (Number(actor.system?.promises ?? 0) < 5) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        void awardPromise(actor, 1).then(() => ui.notifications.info("1 Promise stored for after the Moment of Fulfillment."));
-      }, true);
-    }
     if (Number(actor.system?.promises ?? 0) < 5 || tracker.parentElement?.querySelector(".litm-qol-moment-button")) continue;
     const queued = storedPromise(actor);
     const button = document.createElement("button");

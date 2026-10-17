@@ -29,6 +29,30 @@
 
 .litm-qol-result-body { display: block; }
 
+.roll-card .litm-qol-outcome-summary {
+  margin: 0.4rem 0;
+}
+
+.roll-card .litm-qol-push-luck-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.9em;
+}
+
+.roll-card .litm-qol-trade-summary {
+  margin: 0.3rem 0;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.litm-qol-spending-busy .detailed-spend {
+  opacity: 0.65;
+}
+
+.roll-card .litm-qol-undo-unavailable {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .litm-qol-single-use-dialog p {
   white-space: normal;
   line-height: 1.45;
@@ -80,11 +104,18 @@
   vertical-align: middle;
 }
 
-.litm-qol-trade-power {
+.mist-engine .roll-dialog-container fieldset.litm-qol-trade-power {
   margin: 0.85rem 0 0.4rem;
-  padding: 0.65rem 0;
-  border-top: 1px solid rgb(0 0 0 / 25%);
-  border-bottom: 1px solid rgb(0 0 0 / 25%);
+  padding: 0.65rem;
+  border: 1px solid rgb(0 0 0 / 25%);
+  border-radius: 0;
+}
+
+.mist-engine .roll-dialog-container .litm-qol-trade-power > legend {
+  width: auto;
+  margin-inline: auto;
+  padding-inline: 0.4rem;
+  text-align: center;
 }
 
 .litm-qol-trade-options {
@@ -222,16 +253,6 @@
 .litm-qol-sacrifice-card-choices input[type="checkbox"] {
   flex: 0 0 auto;
   margin: 0;
-}
-
-.litm-qol-ask-help {
-  margin: 0.65rem 0 0.2rem;
-  text-align: center;
-}
-
-.litm-qol-ask-help-button {
-  width: auto;
-  padding-inline: 0.8rem;
 }
 
 .litm-qol-help-player-picker,
@@ -374,13 +395,6 @@
 }
 
 /* Ask for Help / Group Action button row */
-.litm-qol-ask-help {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 .litm-qol-group-burn-choice,
 .litm-qol-group-burn-review label {
   display: flex;
@@ -1325,4 +1339,177 @@ button.litm-qol-replace-primary {
 
 .litm-qol-themebook-description > div > :last-child {
   margin-bottom: 0;
+}
+
+.litm-qol-group-options, .litm-qol-contribution-picker { display: grid; gap: 0.5rem; margin-block: 0.5rem; }
+.litm-qol-group-options label, .litm-qol-contribution-picker label { display: flex; align-items: center; gap: 0.5rem; }
+.litm-qol-group-options select, .litm-qol-contribution-picker select { flex: 1; min-width: 0; }
+.litm-qol-group-roll-note, .litm-qol-group-outcome { font-style: italic; }
+
+.litm-qol-promise-overflow { font-size: 0.85em; }
+
+/* Shared Themebook / Themekit browsers. */
+.litm-qol-browser .left-panel { flex: 0 0 38%; min-width: 0; gap: 0.35rem; }
+.litm-qol-browser .right-panel { min-width: 0; overflow-wrap: anywhere; }
+.litm-qol-browser-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; flex: 0 0 auto; margin: 0; padding: 0.4rem; border: 1px solid currentColor; }
+.litm-qol-browser-fields legend, .litm-qol-browser-hint, .litm-qol-browser-source, .litm-qol-browser-status { font-size: 0.85em; }
+.litm-qol-browser-hint { margin: 0; }
+.litm-qol-browser-fields label, .litm-qol-browser-show-all { display: flex; align-items: center; gap: 0.3rem; }
+.litm-qol-browser .litm-qol-themebook-source label { min-width: 0; }
+.litm-qol-browser .litm-qol-themebook-source span { overflow-wrap: anywhere; }
+.litm-qol-browser [hidden] { display: none !important; }
+
+.litm-qol-source-settings .window-content { overflow: hidden; }
+.litm-qol-source-settings-content { display: flex; flex-direction: column; gap: 0.75rem; height: 100%; min-height: 0; }
+.litm-qol-source-settings-content > p { margin: 0; }
+.litm-qol-source-settings-columns { display: flex; gap: 0.75rem; flex: 1; min-height: 0; }
+.litm-qol-source-settings-columns fieldset { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.litm-qol-source-settings-columns legend { font-weight: bold; }
+.litm-qol-source-settings-columns p { font-size: 0.85em; margin: 0 0 0.5rem; }
+.litm-qol-source-options { flex: 1; min-height: 0; overflow-y: auto; }
+.litm-qol-source-options label { display: flex; align-items: start; gap: 0.4rem; padding: 0.25rem 0; overflow-wrap: anywhere; }
+.litm-qol-source-options input { flex: 0 0 auto; }
+.litm-qol-source-actions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+.litm-qol-source-settings .form-footer { flex: 0 0 auto; }
+
+/* Optional local theme: scope to system roll cards, including chat popouts. */
+body.litm-qol-dark-chat .chat-message:has(.roll-card),
+body.litm-qol-dark-chat .chat-message .roll-card:not(.consequence-container *) {
+  --qol-chat-ink: #f4ead8;
+  --qol-chat-muted: #c6b8a8;
+  --qol-chat-gold: #ddbf87;
+  --qol-chat-line: #79644f;
+  --qol-chat-panel: #242127;
+  color: var(--qol-chat-ink);
+  font-family: Labrada, Georgia, serif;
+}
+body.litm-qol-dark-chat .chat-message:has(.roll-card) {
+  --chat-message-border-color: var(--qol-chat-line);
+  --chat-message-background: #2c272d;
+  background: linear-gradient(rgb(28 24 31 / 88%), rgb(28 24 31 / 88%)), url("/systems/mist-engine-fvtt/assets/bg-dark-old-paper-textures.webp") center / cover;
+  border: 1px solid var(--qol-chat-line);
+  box-shadow: 0 2px 5px rgb(0 0 0 / 25%);
+  padding: 9px;
+}
+body.litm-qol-dark-chat .chat-message:has(.roll-card).whisper {
+  border-style: dashed;
+  border-color: #b6a1ce;
+}
+body.litm-qol-dark-chat .chat-message:has(.roll-card).blind { border-color: #d39b93; }
+body.litm-qol-dark-chat .chat-message:has(.roll-card) .message-header {
+  color: var(--qol-chat-muted);
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--qol-chat-line);
+  margin-bottom: 6px;
+}
+body.litm-qol-dark-chat .chat-message:has(.roll-card) .message-sender {
+  color: var(--qol-chat-ink);
+  font-family: Labrada, Georgia, serif;
+  font-weight: 700;
+}
+body.litm-qol-dark-chat .chat-message:has(.roll-card) .message-header a { color: var(--qol-chat-muted); }
+body.litm-qol-dark-chat .chat-message .roll-card :is(h1, h2, h3, h4, .card-title):not(.consequence-container *) {
+  font-family: Labrada, Georgia, serif;
+  color: var(--qol-chat-ink);
+  text-shadow: none;
+}
+body.litm-qol-dark-chat .chat-message .roll-card .card-title:not(.consequence-container *) {
+  font-size: 1.35em;
+  font-weight: 700;
+  text-align: center;
+  color: var(--qol-chat-gold);
+  margin: 4px 0 8px;
+}
+body.litm-qol-dark-chat .chat-message .roll-card .selected-tags:not(.consequence-container *) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  color: var(--qol-chat-ink);
+  margin: 6px 0;
+}
+body.litm-qol-dark-chat .chat-message .roll-card .selected-tags .tag:not(.consequence-container *),
+body.litm-qol-dark-chat .chat-message .roll-card mark.tag:not(.consequence-container *) {
+  border: 1px solid #8a744c;
+  border-radius: 3px;
+  background: #d6bf83;
+  color: #30251c;
+  padding: 1px 5px;
+  font-family: Labrada, Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+}
+body.litm-qol-dark-chat .chat-message .roll-card .selected-tags .tag.negative:not(.consequence-container *),
+body.litm-qol-dark-chat .chat-message .roll-card mark.weakness:not(.consequence-container *) {
+  background: #693e3d;
+  border-color: #b78578;
+  color: #f7e7da;
+}
+body.litm-qol-dark-chat .chat-message .roll-card .selected-tags :is(.inverted-tag, .inverted-challenge):not(.consequence-container *) { outline-color: #f4ead8; }
+body.litm-qol-dark-chat .chat-message .roll-card :is(.dice-formula, .dice-total):not(.consequence-container *),
+body.litm-qol-dark-chat .chat-message .roll-card .dice-tooltip .part-header:not(.consequence-container *) {
+  font-family: Labrada, Georgia, serif;
+  background: var(--qol-chat-panel);
+  color: var(--qol-chat-ink);
+  border: 1px solid var(--qol-chat-line);
+  box-shadow: none;
+  text-shadow: none;
+}
+body.litm-qol-dark-chat .chat-message .roll-card .dice-total:not(.consequence-container *) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  /* Labrada numerals sit low within their line box; compensate optically. */
+  padding: 1px 6px 7px;
+  font-size: 1.7em;
+  line-height: 1;
+  color: var(--qol-chat-gold);
+}
+body.litm-qol-dark-chat .chat-message .roll-card .dice-tooltip .part-header .part-total:not(.consequence-container *) {
+  background: transparent;
+  color: var(--qol-chat-ink);
+  border-color: var(--qol-chat-line);
+}
+body.litm-qol-dark-chat .chat-message .roll-card :is(.critical-roll, .fumble-roll):not(.consequence-container *) {
+  background: transparent;
+  color: var(--qol-chat-gold);
+  font-family: Labrada, Georgia, serif;
+}
+body.litm-qol-dark-chat .chat-message .roll-card .fumble-roll:not(.consequence-container *) { color: #efada3; }
+body.litm-qol-dark-chat .chat-message .roll-card :is(.power-counter, .detailed-spend):not(.consequence-container *) { border-color: var(--qol-chat-line); }
+body.litm-qol-dark-chat .chat-message .roll-card :is(.detailed-spend-header, .detailed-spend-remaining):not(.consequence-container *) { color: var(--qol-chat-gold); }
+body.litm-qol-dark-chat .chat-message .roll-card .detailed-spend-header:not(.consequence-container *) { font-size: 0.9em; letter-spacing: 0.04em; }
+body.litm-qol-dark-chat .chat-message .roll-card button:not(.consequence-container *) {
+  font-family: Labrada, Georgia, serif;
+  background: #403740;
+  color: var(--qol-chat-ink);
+  border: 1px solid #9c8060;
+  border-radius: 3px;
+  box-shadow: none;
+  text-shadow: none;
+  height: auto;
+  min-height: 26px;
+  padding: 4px 7px;
+  line-height: 1.3;
+  white-space: normal;
+}
+body.litm-qol-dark-chat .chat-message .roll-card button:hover:not(:disabled):not(.consequence-container *),
+body.litm-qol-dark-chat .chat-message .roll-card button:focus-visible:not(:disabled):not(.consequence-container *) {
+  background: #584650;
+  border-color: var(--qol-chat-gold);
+  color: #fff5e2;
+}
+body.litm-qol-dark-chat .chat-message .roll-card :is(button, a):focus-visible:not(.consequence-container *) {
+  outline: 2px solid var(--qol-chat-gold);
+  outline-offset: 2px;
+}
+body.litm-qol-dark-chat .chat-message .roll-card button:disabled:not(.consequence-container *) { opacity: 0.45; cursor: default; }
+body.litm-qol-dark-chat .chat-message .roll-card button[aria-pressed="true"]:not(.consequence-container *) { border-color: var(--qol-chat-gold); background: #584650; }
+body.litm-qol-dark-chat .chat-message .roll-card .detailed-spend-undo:not(.consequence-container *) { color: #e6b39c; }
+body.litm-qol-dark-chat .chat-message .roll-card :is(.detailed-spend-cost, .litm-qol-trade-summary):not(.consequence-container *) { color: var(--qol-chat-muted); opacity: 1; }
+body.litm-qol-dark-chat .chat-message .roll-card a.content-link:not(.consequence-container *) { color: var(--qol-chat-ink); background: #403740; border-color: var(--qol-chat-line); }
+
+/* Parchment outcomes retain native artwork, sizing, typography and controls. */
+body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
+  color: var(--color-dark-1, #191813);
 }

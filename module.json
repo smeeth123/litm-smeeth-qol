@@ -1,15 +1,15 @@
 {
   "id": "litm-smeeth-qol",
-  "title": "Legend in the Mist – Smeeth's QoL",
-  "description": "Quality-of-life improvements for Legend in the Mist, including enhanced roll results, Trade Power, Make a Sacrifice, Ask for Help, single-use story tags, and automatic Fellowship-tag scratching.",
-  "version": "1.0.0",
+  "title": "Legend in the Mist \u2013 Smeeth's QoL",
+  "description": "Quality-of-life improvements for Legend in the Mist, including Trade Power, native Sacrifice actions, integrated native Help and Acting Together, relationship contributions, single-use story tags, and cooperative-roll bookkeeping.",
+  "version": "1.0.19",
   "authors": [
     {
       "name": "smeeth123"
     }
   ],
   "compatibility": {
-    "minimum": "13",
+    "minimum": "14",
     "verified": "14"
   },
   "relationships": {
@@ -18,7 +18,7 @@
         "id": "mist-engine-fvtt",
         "type": "system",
         "compatibility": {
-          "minimum": "14.4.4"
+          "minimum": "14.5.4"
         }
       }
     ],
@@ -35,11 +35,11 @@
   "esmodules": [
     "scripts/litm-smeeth-qol.mjs"
   ],
-   "styles": [
+  "styles": [
     "styles/litm-smeeth-qol.css"
   ],
   "socket": true,
   "url": "https://github.com/smeeth123/litm-smeeth-qol",
   "manifest": "https://github.com/smeeth123/litm-smeeth-qol/releases/latest/download/module.json",
-  "download": "https://github.com/smeeth123/litm-smeeth-qol/releases/download/v1.0.0/litm-smeeth-qol.zip"
+  "download": "https://github.com/smeeth123/litm-smeeth-qol/releases/download/v1.0.19/litm-smeeth-qol.zip"
 }
