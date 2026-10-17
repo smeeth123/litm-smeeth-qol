@@ -290,7 +290,7 @@ export async function runHeroCreator({ reforgeActor = null, parityActor = null }
       if (!method || method === NAV_CANCEL) { await deleteDraftActor(actor); return; }
       if (method === "themekit") {
         const draft = await createThemekitDraft(actor, number);
-        const themekit = await openQolThemekitSelector(actor, draft);
+        const themekit = await openQolThemekitSelector(actor, draft, { themebookName: null });
         if (!themekit) { await actor.deleteEmbeddedDocuments("Item", [draft.id]); continue; }
         const configured = await configureThemekit(draft, themekit, number);
         if (configured === NAV_CANCEL) { await deleteDraftActor(actor); return; }

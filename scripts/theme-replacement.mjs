@@ -1,3 +1,4 @@
+import { chooseThemeDocument } from "./theme-browser.mjs";
 import { openQolThemekitSelector } from "./themekit-selector.mjs";
 import { awardPromise, promiseProjection } from "./promise-manager.mjs";
 
@@ -174,127 +175,8 @@ async function chooseReplacementMethod() {
   });
 }
 
-async function getThemebookSources() {
-  return game.items
-    .filter(item => item.type === "themebook" && !item.system.options?.isStoryTheme)
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
 export async function chooseThemebookSource({ title = "Replace Theme — Select Themebook" } = {}) {
-  const sources = await getThemebookSources();
-  if (!sources.length) {
-    ui.notifications.warn("No Themebook documents are available in the world Item Directory.");
-    return null;
-  }
-
-  const typeOrder = ["litm-origin", "litm-adventure", "litm-greatness", "litm-variable", "other"];
-  const typeNames = {
-    "litm-origin": "Origin",
-    "litm-adventure": "Adventure",
-    "litm-greatness": "Greatness",
-    "litm-variable": "Variable",
-    other: "Other"
-  };
-  const groups = new Map(typeOrder.map(type => [type, []]));
-  for (const item of sources) {
-    const type = typeOrder.includes(item.system.type) ? item.system.type : "other";
-    groups.get(type).push(item);
-  }
-
-  const choiceGroups = typeOrder.map(type => {
-    const items = groups.get(type);
-    if (!items.length) return "";
-    const rows = items.map(item => {
-      const searchable = [item.name, item.system.description, item.system.quest,
-        ...(item.system.powertags ?? []).map(tag => `${tag.question ?? ""} ${tag.name ?? ""}`),
-        ...(item.system.weaknesstags ?? []).map(tag => `${tag.question ?? ""} ${tag.name ?? ""}`)]
-        .join(" ").toLowerCase();
-      return `
-        <li class="litm-qol-themebook-source" data-search="${foundry.utils.escapeHTML(searchable)}">
-          <i class="fa-solid fa-globe source-icon" title="World Item"></i>
-          <label>
-            <input type="checkbox" name="themebookUuid" value="${item.uuid}">
-            <span>${foundry.utils.escapeHTML(item.name)}</span>
-          </label>
-        </li>`;
-    }).join("");
-    return `<div class="litm-qol-themebook-group"><div class="group-header">${typeNames[type]}</div><ul>${rows}</ul></div>`;
-  }).join("");
-
-  const previews = (await Promise.all(sources.map(async item => {
-    const powers = (item.system.powertags ?? [])
-      .filter(tag => String(tag.question || tag.name || "").trim())
-      .map(tag => `<li>${foundry.utils.escapeHTML(tag.question || tag.name)}</li>`).join("");
-    const weaknesses = (item.system.weaknesstags ?? [])
-      .filter(tag => String(tag.question || tag.name || "").trim())
-      .map(tag => `<li>${foundry.utils.escapeHTML(tag.question || tag.name)}</li>`).join("");
-    const improvements = (item.system.specialImprovements ?? [])
-      .filter(improvement => String(improvement.name ?? "").trim())
-      .map(improvement => `<li><strong>${foundry.utils.escapeHTML(improvement.name)}</strong>${improvement.description ? `: ${foundry.utils.escapeHTML(improvement.description)}` : ""}</li>`).join("");
-    const rawDescription = String(item.system.description ?? "").trim();
-    const description = rawDescription
-      ? await foundry.applications.ux.TextEditor.implementation.enrichHTML(rawDescription, { async: true, secrets: item.isOwner })
-      : "<p>No description provided.</p>";
-    return `
-      <div class="litm-qol-themebook-preview" data-themebook-preview="${item.uuid}" hidden>
-        <h2>${foundry.utils.escapeHTML(item.name)}</h2>
-        <section class="litm-qol-themebook-description">
-          <h3>Description</h3>
-          <div>${description}</div>
-        </section>
-        <h3 class="with-line">Power Tag Questions</h3>
-        ${powers ? `<ul class="litm-qol-themebook-question-list">${powers}</ul>` : "<p>No power-tag questions.</p>"}
-        <h3 class="with-line">Weakness Tag Questions</h3>
-        ${weaknesses ? `<ul class="litm-qol-themebook-question-list">${weaknesses}</ul>` : "<p>No weakness-tag questions.</p>"}
-        <h3 class="with-line">Quest</h3>
-        <p>${foundry.utils.escapeHTML(item.system.quest || "No quest provided.")}</p>
-        ${improvements ? `<h3 class="with-line">Special Improvements</h3><ul>${improvements}</ul>` : ""}
-      </div>`;
-  }))).join("");
-
-  const result = await foundry.applications.api.DialogV2.wait({
-    window: { title },
-    classes: [...dialogClasses(), "litm-qol-themebook-selector-window"],
-    position: { width: 900, height: 650 },
-    content: `
-      <div class="litm-qol-themebook-selector">
-        <div class="left-panel">
-          <input type="search" class="themekit-search" name="themebookSearch" placeholder="Search themebooks...">
-          <div class="litm-qol-themebook-source-list">${choiceGroups}</div>
-        </div>
-        <div class="right-panel">
-          <div class="litm-qol-themebook-preview-placeholder">Select a Themebook to preview it.</div>
-          ${previews}
-        </div>
-      </div>`,
-    render: (_event, dialog) => {
-      const root = dialog.element;
-      bindExclusive(root, "themebookUuid", choice => {
-        setButtonDisabled(root, "select", !choice);
-        root.querySelector(".litm-qol-themebook-preview-placeholder").hidden = Boolean(choice);
-        for (const preview of root.querySelectorAll(".litm-qol-themebook-preview")) {
-          preview.hidden = preview.dataset.themebookPreview !== choice?.value;
-        }
-      });
-      root.querySelector('[name="themebookSearch"]').addEventListener("input", event => {
-        const query = event.currentTarget.value.trim().toLowerCase();
-        for (const row of root.querySelectorAll(".litm-qol-themebook-source")) {
-          row.hidden = Boolean(query) && !row.dataset.search.includes(query);
-        }
-        for (const group of root.querySelectorAll(".litm-qol-themebook-group")) {
-          group.hidden = ![...group.querySelectorAll(".litm-qol-themebook-source")].some(row => !row.hidden);
-        }
-      });
-    },
-    buttons: [
-      cancelButton(),
-      backButton(),
-      primaryButton("select", "Use Themebook", (_event, button) => selected(button.form, "themebookUuid")?.value ?? null, "fa-solid fa-check")
-    ],
-    rejectClose: false
-  });
-  if (isBack(result) || isCancel(result)) return result;
-  return fromUuid(result);
+  return chooseThemeDocument({ type: "themebook", title, back: true });
 }
 
 function cloneThemebookSource(source, oldTheme) {
@@ -415,7 +297,7 @@ async function createThemekitDraft(actor, oldTheme) {
 }
 
 async function openImprovedThemekitSelector(actor, draft) {
-  const themekit = await openQolThemekitSelector(actor, draft);
+  const themekit = await openQolThemekitSelector(actor, draft, { themebookName: null });
   return themekit ? draft : null;
 }
 
