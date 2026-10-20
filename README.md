@@ -4,16 +4,6 @@ A quality-of-life module for the **Legend in the Mist** system on Foundry Virtua
 
 <img width="1728" height="1117" alt="Screenshot 2026-10-17 at 2 47 09 PM" src="https://github.com/user-attachments/assets/b053e2b0-20f4-479e-be1a-ceefb2b84202" />
 
-## New in 1.0.21
-
-- Trope Items and Trope-based Hero creation, with shared source settings for Themebooks, Quintessences, and Tropes.
-- Beyond Luck, Diligent Drudge, Fumbling Master, and Larger Than Life automation.
-- Lucky Bastard and Virtuoso chat-card buttons with separate once-per-session markers on the sheet.
-- Compact Improve tracks and usage markers, stable Fumbling Master cleanup, and roll-dialog toggles that preserve scroll position.
-- Dark Chat Cards enabled by default for users without an existing saved preference.
-
-Update the module and reload every connected GM and player client. The standalone compendium-maintenance macros are separate tools and are not bundled with this module.
-
 ## Installation
 
 Install and enable **Socketlib**, then install this module using Foundry’s **Install Module → Manifest URL** field:
@@ -39,7 +29,7 @@ Socketlib is required for enhanced native **Request Help**, **Acting Together**,
 
 ## Forge and hosted games
 
-Version 1.0.20 resolves system integrations from Mist Engine’s actual loaded entry script, including Forge’s versioned CDN URLs. This prevents Trade Power and cooperative roll integrations from patching a separate copy of the system classes.
+System integrations resolve from Mist Engine’s actual loaded entry script, including Forge’s versioned CDN URLs. This prevents Trade Power and cooperative roll integrations from patching a separate copy of the system classes.
 
 After updating on Forge, restart the hosted game and reload every connected client. Trade Power appears in **Detailed** roll dialogs. Socketlib must be installed and enabled in the world for multiplayer bookkeeping.
 
@@ -349,8 +339,6 @@ Diligent Drudge also applies to personal nascent themes: their usual one-mark De
 
 
 ## Quintessence automation: Fumbling Master
-
-Improve cleanup fix: sheet updates during native tag cleanup can rebuild the roll dialog's selected tags. Cleanup now reads a stable snapshot with Fumbling Master themes excluded from the native Improve award, leaving their saved receipt to award exactly two marks. A regression reproduces the previous double award and verifies the corrected behavior at zero marks and across Diligent Drudge's rollover. The checkbox now updates its choices and Power preview in place, preserving dialog scroll and focus. All 90 Fumbling Master and 54 Diligent Drudge checks pass. Improve updates also repaint the five-dot track after sheet rendering. Existing marks are left intact.
 
 Add a **Quintessence** Item named **Fumbling Master** to the Hero. When one of that Hero's actual weakness tags is invoked, the Quick/Detailed roll dialog shows an optional **Fumbling Master** checkbox for the weakness. It starts unchecked. It also recognizes contributed weaknesses, labeling their owning Hero and theme. A GM invoking the Hero's weakness gets the same option. Power tags merely inverted to hinder, unrelated negative tags, and shared Fellowship weaknesses do not qualify.
 
