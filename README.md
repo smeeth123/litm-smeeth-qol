@@ -41,6 +41,8 @@ Use the optional **Category** field beneath Name to organize a Trope, for exampl
 
 Use **Choose** or drag a Themekit from World Items or a compendium into any of the six kit slots. **Open** inspects the linked kit and **Clear** removes the link. The chooser uses the system’s Themekit source settings. Kits remain linked to their source documents, so those sources need to remain available. Enter the Backpack choices directly in the three tag fields. Changes save automatically, and incomplete Tropes can be finished later. Tropes are ordinary Items that can be duplicated, exported, or stored in Item compendiums.
 
+The Trope browser groups entries by **Category**, with categories and Trope names sorted alphabetically and **Uncategorized** last. Use the category selector to narrow the list, or search names and categories together. Empty groups disappear while filtering. Filtering out a selected Trope clears its selection before it can be used; existing source visibility and kit validation still apply.
+
 In **Hero Creator**, choose **Start with a Trope** to browse visible Trope Items from the world and Item compendiums. Preview its description and core kits, choose the fourth kit and one Backpack tag, then customize all four themes through the normal tag, weakness, and Quest steps. Missing or unavailable core kits prevent using a Trope; individual unavailable alternatives cannot be selected. The native Themekit source settings apply to linked kits. **Build freely** retains the individual Themebook/Themekit choices. Reforging can use a Trope’s themes while retaining the Hero’s existing Backpack.
 
 ## Core Automation
