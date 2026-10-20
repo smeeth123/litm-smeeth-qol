@@ -1,6 +1,7 @@
 import { importSystemModule } from "./system-imports.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const SETTING = "themeBrowserWorldSources";
+const SOURCE_LABELS = { themebook: "Themebooks", quintessence: "Quintessences", [`${MODULE_ID}.trope`]: "Tropes" };
 const openBrowsers = new Set();
 const TYPES = ["litm-origin", "litm-adventure", "litm-greatness", "litm-variable"];
 const TYPE_LABELS = ["Origin", "Adventure", "Greatness", "Variable", "Other"];
@@ -15,10 +16,19 @@ Hooks.once("init", () => {
   });
   game.settings.registerMenu(MODULE_ID, "themeBrowserSourcesMenu", {
     name: "Theme Browser Sources", label: "Choose Sources", icon: "fa-solid fa-book-atlas",
-    hint: "Choose World Items and compendiums for everyone’s Themebook and Themekit browsers.",
+    hint: "Choose World Items and compendiums for Themebooks, Quintessences, and Tropes for everyone in this world. Themekits use the system’s source picker.",
     type: ThemeBrowserSourceSettings, restricted: true
   });
 });
+
+// Native source changes arrive as Setting documents on every client.
+function refreshNativeSources(setting) {
+  if (["mist-engine-fvtt.themekitSourcePacks", "mist-engine-fvtt.themekitIncludeWorldItems"].includes(setting.key)) {
+    for (const reload of openBrowsers) void reload();
+  }
+}
+Hooks.on("createSetting", refreshNativeSources);
+Hooks.on("updateSetting", refreshNativeSources);
 
 function availableSources(type) {
   const kit = type === "themekit";
@@ -36,15 +46,21 @@ function availableSources(type) {
   return sources;
 }
 
+export function watchBrowserSources(reload) {
+  openBrowsers.add(reload);
+  return () => openBrowsers.delete(reload);
+}
+
 export function browserSources(type) {
-  const saved = game.settings.get(MODULE_ID, SETTING)?.[type];
+  // Ignore former module Themekit preferences; the native picker is authoritative.
+  const saved = type === "themekit" ? undefined : game.settings.get(MODULE_ID, SETTING)?.[type];
   return availableSources(type).filter(source => !Array.isArray(saved) || saved.includes(source.id));
 }
 
 export class ThemeBrowserSourceSettings extends foundry.applications.api.ApplicationV2 {
   static DEFAULT_OPTIONS = {
     id: "litm-qol-theme-browser-sources", tag: "form", classes: ["litm-qol-source-settings"],
-    window: { title: "Theme Browser Sources", resizable: true }, position: { width: 720, height: 620 },
+    window: { title: "Theme Browser Sources", resizable: true }, position: { width: 940, height: 620 },
     form: { handler: this.#save, closeOnSubmit: true },
     actions: { sourceSelection: this.#selectSources }
   };
@@ -54,11 +70,10 @@ export class ThemeBrowserSourceSettings extends foundry.applications.api.Applica
     const saved = game.settings.get(MODULE_ID, SETTING) ?? {};
     const content = document.createElement("div");
     content.className = "litm-qol-source-settings-content";
-    content.innerHTML = `<p>Choose the sources available to everyone in this world. Themebook and Themekit choices are independent. Selecting none disables all sources for that browser.</p>
-      <div class="litm-qol-source-settings-columns">${["themebook", "themekit"].map(type => {
+    content.innerHTML = `<p>Choose Themebook, Quintessence, and Trope sources for everyone in this world. Each column is independent; selecting none disables its sources. Configure Themekit sources using the system’s source picker in system settings.</p>
+      <div class="litm-qol-source-settings-columns">${Object.keys(SOURCE_LABELS).map(type => {
         const sources = availableSources(type);
-        return `<fieldset data-source-type="${type}"><legend>${type === "themebook" ? "Themebooks" : "Themekits"}</legend>
-          ${type === "themekit" ? "<p>The system’s Themekit source restrictions also apply. Sources excluded there are omitted here.</p>" : ""}
+        return `<fieldset data-source-type="${type}"><legend>${SOURCE_LABELS[type]}</legend>
           <div class="litm-qol-source-actions"><button type="button" data-action="sourceSelection" data-selection="all">All</button><button type="button" data-action="sourceSelection" data-selection="none">None</button></div>
           <div class="litm-qol-source-options">${sources.map(source => `<label><input type="checkbox" name="${type}" value="${esc(source.id)}" ${!Array.isArray(saved[type]) || saved[type].includes(source.id) ? "checked" : ""}><span>${esc(source.label)}</span></label>`).join("") || "<p>No available sources.</p>"}</div></fieldset>`;
       }).join("")}</div>
@@ -77,11 +92,11 @@ export class ThemeBrowserSourceSettings extends foundry.applications.api.Applica
   static async #save(_event, form) {
     if (!game.user.isGM) throw new Error("Only a GM can configure theme browser sources.");
     const saved = {};
-    for (const type of ["themebook", "themekit"]) {
+    for (const type of Object.keys(SOURCE_LABELS)) {
       const available = new Set(availableSources(type).map(source => source.id));
       saved[type] = [...form.querySelectorAll(`input[name="${type}"]:checked`)].map(box => box.value).filter(id => available.has(id));
     }
-    // One world update applies both choices atomically. Explicit [] means none.
+    // Explicit [] means no sources for that type. Themekits are configured natively.
     await game.settings.set(MODULE_ID, SETTING, saved);
   }
 }
@@ -216,7 +231,9 @@ export async function chooseThemeDocument({ type, title, themebookName = null, b
         if (choice && !visible.some(({ item }) => item.uuid === choice.uuid)) clearChoice();
         list.innerHTML = groupedRows(visible, type);
         for (const box of list.querySelectorAll('[name="themeDocument"]')) box.checked = box.value === choice?.uuid;
-        status.textContent = loading ? "Loading sources…" : !sourceCount ? (game.user.isGM ? "No sources enabled. Configure Theme Browser Sources in module settings." : "No sources enabled. Ask the GM to configure Theme Browser Sources in module settings.") :
+        status.textContent = loading ? "Loading sources…" : !sourceCount ? (game.user.isGM
+          ? kit ? "No sources enabled. Configure Themekit sources in system settings." : "No sources enabled. Configure Themebook Sources in module settings."
+          : kit ? "No sources enabled. Ask the GM to configure Themekit sources in system settings." : "No sources enabled. Ask the GM to configure Themebook Sources in module settings.") :
           `${visible.length} ${noun.toLowerCase()}${visible.length === 1 ? "" : "s"}${visible.length ? "." : ". Try other filters or ask the GM to check sources."}${failed.length ? ` Could not load: ${failed.join(", ")}.` : ""}`;
       };
       const load = async () => {

@@ -1,5 +1,9 @@
+import { finalizeFumblingMaster, fumblingPenalty, installFumblingMaster, renderFumblingMaster } from "./fumbling-master.mjs";
+import { installDiligentRolls } from "./diligent-drudge.mjs";
 import { importSystemModule } from "./system-imports.mjs";
 import { installSingleUseRolls } from "./single-use-tags.mjs";
+import { installQuintessenceAutomation } from "./quintessence-automation.mjs";
+import { effectiveMight, renderLargerThanLife } from "./larger-than-life.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const SYSTEM_ID = "mist-engine-fvtt";
 const PATCHED = Symbol.for(`${MODULE_ID}.tradePowerIntegration`);
@@ -19,12 +23,16 @@ export function rawPower(app, DiceRollApp, values = app) {
   const tags = DiceRollApp.applyRulesToSelectedTags(app.selectedTags, app.selectedGmTags,
     app.selectedStoryTags, app.challengeTags);
   const count = DiceRollApp.calculatePowerTags(tags);
-  const might = game.settings.get(SYSTEM_ID, "mightUsageEnabled") === true ? Number(values.mightScale) || 0 : 0;
+  const might = game.settings.get(SYSTEM_ID, "mightUsageEnabled") === true ? effectiveMight(app.actor, values.mightScale) : 0;
   return count.positive - count.negative + (app.helpingTags?.length ?? 0)
-    + (Number(values.numModPositive) || 0) - (Number(values.numModNegative) || 0) + might;
+    + (Number(values.numModPositive) || 0) - (Number(values.numModNegative) || 0) + might
+    - fumblingPenalty(app, DiceRollApp, values);
 }
 
 export function finalizeTrade(app, values, DiceRollApp) {
+  values = { ...values, mightScale: effectiveMight(app.actor, values.mightScale) };
+  values = finalizeFumblingMaster(app, values, DiceRollApp);
+  if (!values) return null;
   // Native GM confirmation retains formValues until approval. Keeping the
   // finalized trade here also preserves it if the dialog is rerendered/closed.
   if (values._litmQolTradeFinalized) return values;
@@ -148,16 +156,19 @@ export function renderTradePower(app, root, DiceRollApp) {
   refresh();
 }
 
-export function installTradePower(DiceRollApp, spendOptions, renderDetailedCard) {
+export function installTradePower(DiceRollApp, spendOptions, renderDetailedCard, createDetailedMessage) {
   RollAppClass = DiceRollApp;
   const proto = DiceRollApp.prototype;
   if (proto[PATCHED]) return;
+  installDiligentRolls(DiceRollApp);
+  installQuintessenceAutomation(DiceRollApp, createDetailedMessage);
   const originalCompute = proto.computePowerAmount;
   const originalRequest = proto.requestGmConfirmation;
   const originalExecute = proto.executeRoll;
   const originalSetOptions = proto.setOptions;
   proto.computePowerAmount = function(...args) {
-    if (this.rollType !== "detailed" || !this._litmQolPowerTrade) return originalCompute.apply(this, args);
+    this.mightScale = effectiveMight(this.actor, this.mightScale);
+    if (this.rollType !== "detailed" || !this._litmQolPowerTrade) return Math.max(1, originalCompute.apply(this, args) - fumblingPenalty(this, DiceRollApp));
     return rawPower(this, DiceRollApp) + delta(this._litmQolPowerTrade.type);
   };
   proto.setOptions = function(options) {
@@ -201,6 +212,7 @@ export function installTradePower(DiceRollApp, spendOptions, renderDetailedCard)
   };
   Object.defineProperty(proto, PATCHED, { value: true });
   installSingleUseRolls(DiceRollApp, spendOptions, renderDetailedCard);
+  installFumblingMaster(DiceRollApp);
 }
 
 export function nativeSacrifice(root) {
@@ -244,11 +256,11 @@ Hooks.on("preCreateChatMessage", (message, data) => {
 Hooks.once("ready", async () => {
   if (game.system.id !== SYSTEM_ID) return;
   try {
-    const [{ DiceRollApp }, { SPEND_OPTIONS, renderDetailedCard }] = await Promise.all([
+    const [{ DiceRollApp }, { SPEND_OPTIONS, renderDetailedCard, createDetailedMessage }] = await Promise.all([
       importSystemModule("apps/dice-roll-app.mjs"),
       importSystemModule("lib/detailed-spend.mjs")
     ]);
-    installTradePower(DiceRollApp, SPEND_OPTIONS, renderDetailedCard);
+    installTradePower(DiceRollApp, SPEND_OPTIONS, renderDetailedCard, createDetailedMessage);
   } catch (error) {
     console.error(`${MODULE_ID} | Trade Power integration failed.`, error);
     ui.notifications.error("Smeeth's QoL could not initialize Trade Power. See the console for details.");
@@ -256,5 +268,9 @@ Hooks.once("ready", async () => {
 });
 
 export function renderIntegratedTradePower(app, root) {
-  if (RollAppClass && app instanceof RollAppClass) renderTradePower(app, root, RollAppClass);
+  if (RollAppClass && app instanceof RollAppClass) {
+    renderLargerThanLife(app, root);
+    renderFumblingMaster(app, root, RollAppClass);
+    renderTradePower(app, root, RollAppClass);
+  }
 }

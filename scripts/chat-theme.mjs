@@ -8,9 +8,9 @@ export function applyChatTheme(enabled) {
 }
 
 Hooks.once("init", () => game.settings.register(MODULE_ID, SETTING, {
-  name: "Dark Chat Cards (Experimental)",
+  name: "Dark Chat Cards",
   hint: "Use dark paper, cream text, and the module’s Labrada font for roll cards. Applies only to your client and updates immediately.",
-  scope: "client", config: true, type: Boolean, default: false,
+  scope: "client", config: true, type: Boolean, default: true,
   onChange: applyChatTheme
 }));
 Hooks.once("ready", () => applyChatTheme(game.settings.get(MODULE_ID, SETTING)));

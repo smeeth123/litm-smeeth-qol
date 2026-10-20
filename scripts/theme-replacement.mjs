@@ -1,3 +1,4 @@
+import { usesDiligentTrack } from "./diligent-drudge.mjs";
 import { chooseThemeDocument } from "./theme-browser.mjs";
 import { openQolThemekitSelector } from "./themekit-selector.mjs";
 import { awardPromise, promiseProjection } from "./promise-manager.mjs";
@@ -566,7 +567,7 @@ async function sendNascentSummary(actor, theme, tagName, matured) {
 }
 
 async function developNascentTheme(actor, theme) {
-  if (!isNascent(theme) || Number(theme.system.improve ?? 0) < 1 || nascentPrompts.has(theme.id)) return;
+  if (usesDiligentTrack(theme) || !isNascent(theme) || Number(theme.system.improve ?? 0) < 1 || nascentPrompts.has(theme.id)) return;
   nascentPrompts.add(theme.id);
   try {
     const choice = await promptNascentPowerTag(theme);
@@ -627,7 +628,7 @@ function renderThemeReplacement(app, html) {
     const row = actionRow(container);
     if (!row) continue;
 
-    if (isNascent(theme)) {
+    if (isNascent(theme) && !usesDiligentTrack(theme)) {
       container.classList.add("litm-qol-nascent-theme");
       let nascentGroup = row.querySelector(".litm-qol-nascent-actions");
       if (!nascentGroup) {
@@ -673,7 +674,7 @@ Hooks.on("updateItem", (item, changes, _options, userId) => {
   if (changedImprove && item.parent?.sheet?.rendered) {
     setTimeout(() => item.parent.sheet.render(false), 0);
   }
-  if (userId !== game.user.id || !isNascent(item) || Number(item.system.improve ?? 0) < 1) return;
+  if (userId !== game.user.id || usesDiligentTrack(item) || !isNascent(item) || Number(item.system.improve ?? 0) < 1) return;
   if (!changedImprove) return;
   const actor = item.parent;
   if (!isCharacter(actor) || (!actor.isOwner && !game.user.isGM)) return;

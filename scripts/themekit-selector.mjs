@@ -4,7 +4,7 @@ import { chooseThemeDocument } from "./theme-browser.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const PATCH_FLAG = Symbol.for(`${MODULE_ID}.themekitSelectorPatched`);
 
-async function applyThemekit(actor, actorThemebook, themekit) {
+export async function applyThemekit(actor, actorThemebook, themekit) {
   const { ThemeKitAdapter } = await importSystemModule("lib/themekit-adapter.mjs");
   const adapter = new ThemeKitAdapter();
   if (!actorThemebook) {

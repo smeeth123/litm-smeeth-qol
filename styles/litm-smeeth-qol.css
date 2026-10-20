@@ -1513,3 +1513,144 @@ body.litm-qol-dark-chat .chat-message .roll-card a.content-link:not(.consequence
 body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
   color: var(--color-dark-1, #191813);
 }
+
+/* Module-defined Trope items. */
+.litm-qol-trope-sheet .window-content {
+  padding: 1rem;
+  overflow: hidden;
+  color: #efe2c7;
+  background: #29232d;
+  font-family: Labrada, Georgia, serif;
+}
+.litm-qol-trope-content { overflow-y: auto; min-height: 0; padding-right: 0.4rem; scrollbar-gutter: stable; }
+.litm-qol-trope-content section { margin-top: 1rem; }
+.litm-qol-trope-content h2 { margin: 0 0 0.4rem; color: #e7ca8b; font-family: inherit; font-size: 1.25rem; border-bottom: 1px solid #8e7756; }
+.litm-qol-trope-content p { margin: 0.25rem 0 0.5rem; }
+.litm-qol-trope-content label { display: flex; flex-direction: column; gap: 0.25rem; }
+.litm-qol-trope-content input { color: #efe2c7; background: #1e1922; border: 1px solid #8e7756; }
+.litm-qol-trope-content header input { font-size: 1.4rem; height: 2.25rem; }
+.litm-qol-trope-slot { display: flex; align-items: center; gap: 0.4rem; margin: 0.4rem 0; padding: 0.45rem; border: 1px solid #8e7756; border-radius: 4px; background: #352d3a; }
+.litm-qol-trope-number { color: #e7ca8b; width: 1rem; flex: 0 0 auto; }
+.litm-qol-trope-kit { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.litm-qol-trope-kit small { display: block; color: #e6c7aa; }
+.litm-qol-trope-slot button { flex: 0 0 auto; width: auto; min-width: 2rem; padding: 0.2rem 0.4rem; color: #efe2c7; border: 1px solid #8e7756; background: #49394c; font-family: inherit; }
+.litm-qol-trope-backpack { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.litm-qol-trope-description prose-mirror { min-height: 120px; color: #efe2c7; --color-text-primary: #efe2c7; }
+.litm-qol-trope-save-note { font-size: 0.9rem; color: #d3c2aa; }
+
+/* Hero Creator Trope selection. */
+.litm-qol-trope-picker { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr); gap: 1rem; height: 100%; min-height: 0; }
+.litm-qol-trope-list, .litm-qol-trope-preview { overflow-y: auto; min-height: 0; padding-right: 0.4rem; }
+.litm-qol-trope-option { display: flex; gap: 0.5rem; align-items: start; padding: 0.5rem; border-bottom: 1px solid #8e7756; }
+.litm-qol-trope-option[hidden] { display: none; }
+.litm-qol-trope-option small { display: block; opacity: 0.8; }
+.litm-qol-trope-preview fieldset { margin-top: 0.75rem; }
+.litm-qol-trope-preview fieldset label { display: flex; align-items: start; gap: 0.5rem; padding: 0.4rem 0; }
+.litm-qol-trope-picker-window .dialog-content { min-height: 0; flex: 1; overflow: hidden; }
+
+/* Match the session-use control to the sheet's small development dots. */
+.mist-engine .litm-quintessence .litm-qol-session-use {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding-left: 0.4rem;
+  color: #724a32;
+  font-family: Labrada, serif;
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.mist-engine .litm-quintessence .litm-qol-session-use input[type="checkbox"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0;
+  margin: 0;
+}
+.mist-engine .litm-quintessence .litm-qol-session-use-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 0.6rem;
+  height: 0.6rem;
+  border: 1px solid #724a32;
+  border-radius: 50%;
+  background: #f6eeea;
+}
+.mist-engine .litm-quintessence .litm-qol-session-use input:checked + .litm-qol-session-use-dot {
+  background: #724a32;
+}
+.mist-engine .litm-quintessence .litm-qol-session-use input:focus-visible + .litm-qol-session-use-dot {
+  outline: 2px solid #724a32;
+  outline-offset: 3px;
+}
+.mist-engine .litm-quintessence .litm-qol-session-use input:disabled + .litm-qol-session-use-dot {
+  opacity: 0.5;
+}
+/* Keep five Improve marks together on narrow theme cards. */
+.mist-engine .themebook-style .development-partial-container.litm-qol-diligent-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+.mist-engine .litm-qol-diligent-markers {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.15rem;
+  line-height: 1;
+}
+.mist-engine .themebook-style .litm-qol-diligent-markers .marker {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  font-size: 0.55rem;
+  line-height: 1;
+}
+
+/* Foundry gives buttons a fixed height; allow this label and its count to fit. */
+.mist-engine .themebook-container .litm-qol-theme-action-row .litm-qol-improve-theme-button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.35rem;
+  row-gap: 0.1rem;
+  box-sizing: border-box;
+  height: auto;
+  min-height: 2rem;
+  max-width: 100%;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+.mist-engine .litm-qol-improve-label,
+.mist-engine .litm-qol-improve-count {
+  white-space: nowrap;
+}
+.mist-engine .litm-qol-improve-count { font-size: 0.85em; }
+
+.litm-qol-fumbling-master { margin: 0.6rem 0; }
+.litm-qol-fumbling-master p { margin: 0.25rem 0 0.5rem; font-size: 0.85rem; }
+.litm-qol-fumbling-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  font-size: 0.9rem;
+}
+.litm-qol-fumbling-choice span { overflow-wrap: anywhere; }

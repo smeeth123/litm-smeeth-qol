@@ -1,4 +1,5 @@
-import { openQolThemekitSelector } from "./themekit-selector.mjs";
+import { chooseTropePlan, resolveTropeKit } from "./trope-creator.mjs";
+import { applyThemekit, openQolThemekitSelector } from "./themekit-selector.mjs";
 import { chooseThemebookSource } from "./theme-replacement.mjs";
 
 const MODULE_ID = "litm-smeeth-qol";
@@ -82,18 +83,64 @@ function questionRow({ name, value, question, answerName }) {
   </label>`;
 }
 
-async function askHeroName({ defaultName = "", mode = "create" } = {}) {
-  const title = mode === "reforge" ? "Be Reforged — Hero Creator" : mode === "parity" ? "Journey’s End — Replacement Hero" : "Hero Creator";
-  const heading = mode === "reforge" ? "Create the Reforged Hero" : mode === "parity" ? "Create the Replacement Hero" : "Create a Hero";
+async function chooseHeroStartingPoint({ includeBackpack = true } = {}) {
+  return foundry.applications.api.DialogV2.wait({
+    window: { title: "Hero Creator — Starting Point" }, classes: classes(),
+    content: `<div class="litm-qol-hero-step"><h2>How would you like to create this Hero?</h2>
+      <label class="litm-qol-hero-method"><input type="checkbox" name="heroStartingPoint" value="trope"><strong>Start with a Trope</strong><span>Use three core Themekits and choose a fourth kit.${includeBackpack ? " Choose a Backpack tag too." : " Your existing Backpack is retained."}</span></label>
+      <label class="litm-qol-hero-method"><input type="checkbox" name="heroStartingPoint" value="custom"><strong>Build freely</strong><span>Choose a Themekit or Themebook for each of your four themes.</span></label></div>`,
+    render: (_event, dialog) => exclusiveCheckboxes(dialog.element, "heroStartingPoint", choice => setDisabled(dialog.element, "next", !choice)),
+    buttons: [cancelButton(), nextButton("Next", (_event, button) => button.form.querySelector('[name="heroStartingPoint"]:checked')?.value ?? NAV_CANCEL)],
+    rejectClose: false
+  });
+}
+
+async function buildTropeThemes(actor, plan) {
+  const completed = [];
+  for (let index = 0; index < 4;) {
+    const kit = await resolveTropeKit(plan.kits[index].uuid);
+    if (!kit) { ui.notifications.warn("A Trope Themekit is no longer available. Please choose again."); return NAV_BACK; }
+    const draft = await createThemekitDraft(actor, index + 1);
+    await applyThemekit(actor, draft, kit);
+    const configured = await configureThemekit(draft, kit, index + 1);
+    if (configured === NAV_CANCEL) return NAV_CANCEL;
+    if (configured === NAV_BACK) {
+      await actor.deleteEmbeddedDocuments("Item", [draft.id]);
+      if (index === 0) return NAV_BACK;
+      index--;
+      await actor.deleteEmbeddedDocuments("Item", [completed.pop()]);
+      continue;
+    }
+    await draft.update(configured);
+    completed.push(draft.id);
+    index++;
+  }
+  return true;
+}
+
+async function applyTropeBackpack(actor, tag) {
+  if (!tag) return;
+  const backpack = actor.items.find(item => item.type === "backpack");
+  if (backpack) {
+    await backpack.update({ "system.items": [...(backpack.system.items ?? []).map(item => foundry.utils.deepClone(item)), cleanTag({ name: tag })] });
+  } else {
+    await actor.createEmbeddedDocuments("Item", [{ name: "Backpack", type: "backpack", system: { items: [cleanTag({ name: tag })] } }]);
+  }
+}
+
+async function askHeroName({ defaultName = "", fallbackName = "New Hero", mode = "create" } = {}) {
+  const title = mode === "reforge" ? "Be Reforged — Name Your Hero" : mode === "parity" ? "Journey’s End — Name Your Hero" : "Hero Creator — Name Your Hero";
   return foundry.applications.api.DialogV2.wait({
     window: { title }, classes: classes(),
-    content: `<div class="litm-qol-hero-step"><h2>${heading}</h2><p>The Hero Creator will guide you through four themes, one at a time.</p><label><strong>Hero name</strong><input type="text" name="heroName" value="${esc(defaultName)}" autofocus autocomplete="off"></label></div>`,
+    content: `<div class="litm-qol-hero-step"><h2>Name your Hero</h2><p>Your themes are complete. Choose a name now, or skip and name your Hero later. Skipping keeps the name <strong>${esc(fallbackName)}</strong>.</p><label><strong>Hero name</strong><input type="text" name="heroName" value="${esc(defaultName)}" autofocus autocomplete="off"></label></div>`,
     render: (_event, dialog) => {
       const input = dialog.element.querySelector('[name="heroName"]');
-      const update = () => setDisabled(dialog.element, "begin", !input.value.trim());
+      const update = () => setDisabled(dialog.element, "finish", !input.value.trim());
       input.addEventListener("input", update); update();
     },
-    buttons: [cancelButton(), nextButton("Begin", (_event, button) => button.form.elements.heroName.value.trim(), "begin")],
+    buttons: [cancelButton(),
+      { action: "skip", label: "Skip", icon: "fa-solid fa-forward", callback: () => ({ skip: true }) },
+      nextButton(mode === "reforge" ? "Reforge Hero" : mode === "parity" ? "Create Replacement Hero" : "Finish", (_event, button) => ({ name: button.form.elements.heroName.value.trim() }), "finish")],
     rejectClose: false
   });
 }
@@ -260,14 +307,14 @@ function readThemebookConfiguration(form) {
   return base;
 }
 
-async function confirmation(actor, { mode = "create" } = {}) {
+async function confirmation(actor, { mode = "create", tropePlan = null } = {}) {
   const themes = actor.items.filter(item => item.type === "themebook");
   const reforging = mode === "reforge";
   const parity = mode === "parity";
   return foundry.applications.api.DialogV2.wait({
     window: { title: reforging ? "Be Reforged — Final Confirmation" : parity ? "Journey’s End — Confirm Replacement Hero" : "Hero Creator — Finish" }, classes: classes(),
-    content: `<div class="litm-qol-hero-step"><h2>${esc(actor.name)} is ready</h2><p>You created four themes:</p><ol>${themes.map(theme => `<li><strong>${esc(theme.name)}</strong> — ${esc(theme.system.powertags?.[0]?.name)}</li>`).join("")}</ol>${reforging ? '<div class="litm-qol-hero-reminder"><strong>Finishing will permanently replace all four old themes.</strong> Promise and Quintessences will remain on the Hero.</div>' : parity ? '<div class="litm-qol-hero-reminder"><strong>Finishing creates this as a separate replacement Hero.</strong> The retired Hero remains unchanged.</div>' : '<div class="litm-qol-hero-reminder"><strong>Before play begins:</strong><ul><li>Choose a Backpack tag.</li><li>Create a relationship tag for each member of your fellowship.</li></ul></div>'}</div>`,
-    buttons: [cancelButton(), nextButton(reforging ? "Reforge Hero" : parity ? "Create Replacement Hero" : "Finish", () => true, "finish")], rejectClose: false
+    content: `<div class="litm-qol-hero-step"><h2>Your Hero is ready</h2>${tropePlan ? `<p>Trope: <strong>${esc(tropePlan.tropeName)}</strong></p>${tropePlan.backpackTag ? `<p>Backpack tag: <mark class="tag positive">${esc(tropePlan.backpackTag)}</mark></p>` : ""}` : ""}<p>You created four themes:</p><ol>${themes.map(theme => `<li><strong>${esc(theme.name)}</strong> — ${esc(theme.system.powertags?.[0]?.name)}</li>`).join("")}</ol>${reforging ? '<div class="litm-qol-hero-reminder"><strong>Finishing will permanently replace all four old themes.</strong> Promise and Quintessences will remain on the Hero.</div>' : parity ? '<div class="litm-qol-hero-reminder"><strong>Finishing creates this as a separate replacement Hero.</strong> The retired Hero remains unchanged.</div>' : `<div class="litm-qol-hero-reminder"><strong>Before play begins:</strong><ul>${tropePlan?.backpackTag ? "" : "<li>Choose a Backpack tag.</li>"}<li>Create a relationship tag for each member of your fellowship.</li></ul></div>`}</div>`,
+    buttons: [cancelButton(), nextButton("Continue to Naming", () => true, "finish")], rejectClose: false
   });
 }
 
@@ -282,33 +329,55 @@ export async function runHeroCreator({ reforgeActor = null, parityActor = null }
   let actor = null;
   try {
     const mode = reforgeActor ? "reforge" : parityActor ? "parity" : "create";
-    const name = await askHeroName({ defaultName: reforgeActor?.name ?? "", mode });
-    if (!name || name === NAV_CANCEL) return;
-    actor = await Actor.create({ name, type: "litm-character", ownership: { default: 0, [game.user.id]: 3 }, flags: { [MODULE_ID]: { [DRAFT_FLAG]: true } } });
-    for (let number = 1; number <= 4;) {
-      const method = await chooseThemeMethod(number);
-      if (!method || method === NAV_CANCEL) { await deleteDraftActor(actor); return; }
-      if (method === "themekit") {
-        const draft = await createThemekitDraft(actor, number);
-        const themekit = await openQolThemekitSelector(actor, draft, { themebookName: null });
-        if (!themekit) { await actor.deleteEmbeddedDocuments("Item", [draft.id]); continue; }
-        const configured = await configureThemekit(draft, themekit, number);
-        if (configured === NAV_CANCEL) { await deleteDraftActor(actor); return; }
-        if (configured === NAV_BACK) { await actor.deleteEmbeddedDocuments("Item", [draft.id]); continue; }
-        await draft.update(configured);
-      } else {
-        const source = await chooseThemebookSource({ title: `Hero Creator — Select Themebook for Theme ${number}` });
-        if (source?.navigation === "cancel") { await deleteDraftActor(actor); return; }
-        if (!source || source === NAV_CANCEL || source?.navigation) continue;
-        const configured = await configureThemebook(source, number);
-        if (configured === NAV_CANCEL) { await deleteDraftActor(actor); return; }
-        if (configured === NAV_BACK) continue;
-        await actor.createEmbeddedDocuments("Item", [configured]);
+    let tropePlan = null;
+    while (true) {
+      const start = await chooseHeroStartingPoint({ includeBackpack: mode !== "reforge" });
+      if (!start || start === NAV_CANCEL) return;
+      tropePlan = null;
+      if (start === "trope") {
+        tropePlan = await chooseTropePlan({ includeBackpack: mode !== "reforge" });
+        if (tropePlan?.navigation === "back") continue;
+        if (!tropePlan) return;
       }
-      number += 1;
+      const flags = { [DRAFT_FLAG]: true };
+      if (tropePlan) flags.heroCreatorTrope = { uuid: tropePlan.tropeUuid, name: tropePlan.tropeName, kitUuids: tropePlan.kits.map(kit => kit.uuid), backpackTag: tropePlan.backpackTag };
+      actor = await Actor.create({ name: reforgeActor?.name || "New Hero", type: "litm-character", ownership: { default: 0, [game.user.id]: 3 }, flags: { [MODULE_ID]: flags } });
+      if (!tropePlan) break;
+      const built = await buildTropeThemes(actor, tropePlan);
+      if (built === NAV_CANCEL) { await deleteDraftActor(actor); return; }
+      if (built === NAV_BACK) { await deleteDraftActor(actor); actor = null; continue; }
+      if (mode !== "reforge") await applyTropeBackpack(actor, tropePlan.backpackTag);
+      break;
     }
-    const done = await confirmation(actor, { mode });
+    if (!tropePlan) {
+      for (let number = 1; number <= 4;) {
+        const method = await chooseThemeMethod(number);
+        if (!method || method === NAV_CANCEL) { await deleteDraftActor(actor); return; }
+        if (method === "themekit") {
+          const draft = await createThemekitDraft(actor, number);
+          const themekit = await openQolThemekitSelector(actor, draft, { themebookName: null });
+          if (!themekit) { await actor.deleteEmbeddedDocuments("Item", [draft.id]); continue; }
+          const configured = await configureThemekit(draft, themekit, number);
+          if (configured === NAV_CANCEL) { await deleteDraftActor(actor); return; }
+          if (configured === NAV_BACK) { await actor.deleteEmbeddedDocuments("Item", [draft.id]); continue; }
+          await draft.update(configured);
+        } else {
+          const source = await chooseThemebookSource({ title: `Hero Creator — Select Themebook for Theme ${number}` });
+          if (source?.navigation === "cancel") { await deleteDraftActor(actor); return; }
+          if (!source || source === NAV_CANCEL || source?.navigation) continue;
+          const configured = await configureThemebook(source, number);
+          if (configured === NAV_CANCEL) { await deleteDraftActor(actor); return; }
+          if (configured === NAV_BACK) continue;
+          await actor.createEmbeddedDocuments("Item", [configured]);
+        }
+        number += 1;
+      }
+    }
+    const done = await confirmation(actor, { mode, tropePlan });
     if (!done || done === NAV_CANCEL) { await deleteDraftActor(actor); return; }
+    const naming = await askHeroName({ defaultName: reforgeActor?.name ?? "", fallbackName: actor.name, mode });
+    if (!naming || naming === NAV_CANCEL || (!naming.skip && !naming.name)) { await deleteDraftActor(actor); return; }
+    if (!naming.skip) await actor.update({ name: naming.name });
     if (reforgeActor || parityActor) return actor;
     await actor.update({ "system.editMode": false });
     await actor.unsetFlag(MODULE_ID, DRAFT_FLAG);

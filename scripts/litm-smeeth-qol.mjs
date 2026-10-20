@@ -1,10 +1,16 @@
+import { improveResetUpdate, FUMBLING_OVERFLOW } from "./fumbling-master.mjs";
+import { renderQuintessenceUsage } from "./quintessence-usage.mjs";
+import { renderLuckyBastard, renderVirtuoso } from "./lucky-bastard.mjs";
+import { DILIGENT_FLAG, usesDiligentTrack, canImproveTheme, pendingDiligentImprovements, renderDiligentTracks } from "./diligent-drudge.mjs";
+const diligentWorkflows = new Set();
+import "./tropes.mjs";
 import { importSystemModule } from "./system-imports.mjs";
 import "./chat-theme.mjs";
 import "./sheet-scroll.mjs";
 import "./fellowship-sync.mjs";
 import { clearCooperativeRoll } from "./cooperative-rolls.mjs";
 import { cleanResultCard } from "./chat-cards.mjs";
-import { decorateSingleUseTags } from "./single-use-tags.mjs";
+import { decorateSingleUseTags, useLuckyBastard, useVirtuoso } from "./single-use-tags.mjs";
 import { decorateTradeCard, isNativeSacrificeMessage, nativeSacrifice, renderIntegratedTradePower } from "./roll-integration.mjs";
 import { awardPromise } from "./promise-manager.mjs";
 import "./moment-of-fulfillment.mjs";
@@ -78,6 +84,8 @@ async function onChatCardRendered(message, html) {
   if (!root) return;
 
   cleanResultCard(message, root);
+  renderLuckyBastard(message, root, useLuckyBastard);
+  renderVirtuoso(message, root, useVirtuoso);
   decorateTradeCard(message, root);
   renderNativeSacrificeActions(message, root);
 
@@ -124,7 +132,9 @@ async function onChatCardRendered(message, html) {
 }
 
 function renderActorEnhancements(app, html) {
+  renderQuintessenceUsage(getActorFromApp(app), getRootElement(html));
   decorateSingleUseTags(getActorFromApp(app), getRootElement(html));
+  renderDiligentTracks(getActorFromApp(app), getRootElement(html));
   addImproveThemeButtons(app, html);
 }
 
@@ -663,7 +673,7 @@ function describeThemeImprovement(theme, action, details) {
   return "Improved the theme";
 }
 
-async function sendThemeImprovementSummary(actor, theme, improvementDescription, rewrite, { freeReforged = false } = {}) {
+async function sendThemeImprovementSummary(actor, theme, improvementDescription, rewrite, { freeReforged = false, spendDiligent = false } = {}) {
   const gmIds = game.users.filter(user => user.isGM).map(user => user.id);
   if (!gmIds.length) return;
 
@@ -681,7 +691,7 @@ async function sendThemeImprovementSummary(actor, theme, improvementDescription,
       <ul>
         <li>${improvement}</li>
         ${rewriteLine}
-        <li>${freeReforged ? "One inherited Be Reforged improvement spent; this theme’s Improve marks were unchanged." : "Improve reset to 0."}</li>
+        <li>${spendDiligent ? `One Diligent Drudge improvement spent; ${pendingDiligentImprovements(theme)} remaining. Improve marks were unchanged.` : freeReforged ? "One inherited Be Reforged improvement spent; this theme’s Improve marks were unchanged." : `Improve is now ${Number(theme.system.improve ?? 0)}.`}</li>
       </ul>
     </div>`;
 
@@ -694,11 +704,16 @@ async function sendThemeImprovementSummary(actor, theme, improvementDescription,
   });
 }
 
-async function commitThemeImprovement(actor, theme, action, details, rewrite, { resetImprove = true } = {}) {
+async function commitThemeImprovement(actor, theme, action, details, rewrite, { resetImprove = true, spendDiligent = false } = {}) {
   const powertags = foundry.utils.deepClone(theme.system.powertags ?? []);
   const weaknesstags = foundry.utils.deepClone(theme.system.weaknesstags ?? []);
   const specialImprovements = specialImprovementSlots(theme);
-  const update = resetImprove ? { "system.improve": 0 } : {};
+  const update = resetImprove ? improveResetUpdate(theme) : {};
+  if (spendDiligent) {
+    const remaining = pendingDiligentImprovements(theme);
+    if (remaining < 1) throw new Error("No earned Diligent Drudge improvements remain.");
+    update[`flags.${MODULE_ID}.${DILIGENT_FLAG}`] = remaining - 1;
+  }
 
   if (rewrite?.choice) {
     const collection = rewrite.choice.type === "power" ? powertags : weaknesstags;
@@ -734,6 +749,12 @@ async function commitThemeImprovement(actor, theme, action, details, rewrite, { 
   if (rewrite?.choice?.type === "power" && action !== "power") update["system.powertags"] = powertags;
   if (rewrite?.choice?.type === "weakness" && action !== "weakness") update["system.weaknesstags"] = weaknesstags;
 
+  if (usesDiligentTrack(theme) && theme.getFlag?.(MODULE_ID, "nascentTheme") === true) {
+    const powers = update["system.powertags"] ?? theme.system.powertags ?? [];
+    if (powers.filter(tag => String(tag.name ?? "").trim() && !tag.planned).length >= 3) {
+      update[`flags.${MODULE_ID}.nascentTheme`] = false;
+    }
+  }
   await theme.update(update);
   if (action === "promise") {
     await awardPromise(actor, 1);
@@ -825,7 +846,11 @@ async function runImproveThemeWorkflow(actor, theme, { freeReforged = false } = 
   if (!actor || !theme || (theme.type !== "themebook" && !isFellowshipTheme(theme))) return;
   const canModify = isFellowshipTheme(theme) ? theme.isOwner : actor.isOwner;
   const freeRemaining = Number(actor.getFlag?.(MODULE_ID, REFORGED_IMPROVEMENTS_FLAG) ?? 0);
-  if ((!canModify && !game.user.isGM) || (freeReforged ? freeRemaining < 1 : Number(theme.system.improve ?? 0) < 3)) return;
+  const spendDiligent = !freeReforged && pendingDiligentImprovements(theme) > 0;
+  if ((!canModify && !game.user.isGM) || (freeReforged ? freeRemaining < 1 : !canImproveTheme(theme))) return;
+  const lockKey = theme.uuid ?? `${actor.id}:${theme.id}`;
+  if (diligentWorkflows.has(lockKey)) return;
+  diligentWorkflows.add(lockKey);
   try {
     let page = "action";
     let action = null;
@@ -861,14 +886,14 @@ async function runImproveThemeWorkflow(actor, theme, { freeReforged = false } = 
       if (!rewrite) return;
 
       const improvementDescription = describeThemeImprovement(theme, action, details);
-      await commitThemeImprovement(actor, theme, action, details, rewrite, { resetImprove: !freeReforged });
+      await commitThemeImprovement(actor, theme, action, details, rewrite, { resetImprove: !freeReforged && !spendDiligent, spendDiligent });
       if (freeReforged) {
         const remaining = Math.max(0, Number(actor.getFlag?.(MODULE_ID, REFORGED_IMPROVEMENTS_FLAG) ?? freeRemaining) - 1);
         if (remaining) await actor.setFlag(MODULE_ID, REFORGED_IMPROVEMENTS_FLAG, remaining);
         else await actor.unsetFlag(MODULE_ID, REFORGED_IMPROVEMENTS_FLAG);
       }
       try {
-        await sendThemeImprovementSummary(actor, theme, improvementDescription, rewrite, { freeReforged });
+        await sendThemeImprovementSummary(actor, theme, improvementDescription, rewrite, { freeReforged, spendDiligent });
       } catch (summaryError) {
         console.error(`${MODULE_ID} | Theme improvement was applied, but the GM chat summary failed.`, summaryError);
         ui.notifications.warn("The theme was improved, but its GM chat summary could not be sent.");
@@ -879,6 +904,8 @@ async function runImproveThemeWorkflow(actor, theme, { freeReforged = false } = 
   } catch (error) {
     console.error(`${MODULE_ID} | Improve Theme workflow failed.`, error);
     ui.notifications.error("The theme could not be improved. Check the console for details.");
+  } finally {
+    diligentWorkflows.delete(lockKey);
   }
 }
 
@@ -918,7 +945,10 @@ function insertImproveThemeButton(container, actor, theme) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "litm-qol-improve-theme-button";
-  button.innerHTML = '<i class="fa-solid fa-star"></i> Improve Theme';
+  const pending = pendingDiligentImprovements(theme);
+  const saved = Math.max(0, Number(theme.getFlag?.(MODULE_ID, FUMBLING_OVERFLOW)) || 0);
+  if (saved) button.dataset.tooltip = `${saved} additional Improve ${saved === 1 ? "mark is" : "marks are"} saved from Fumbling Master and will carry over after this improvement.`;
+  button.innerHTML = `<i class="fa-solid fa-star" aria-hidden="true"></i><span class="litm-qol-improve-label">Improve Theme</span>${pending ? ` <span class="litm-qol-improve-count">(${pending} available)</span>` : ""}`;
   button.addEventListener("click", event => {
     event.preventDefault();
     event.stopPropagation();
@@ -952,10 +982,10 @@ function addImproveThemeButtons(app, html) {
   for (const container of root.querySelectorAll(".themebook-container[data-id]")) {
     const theme = actor.items?.get(container.dataset.id);
     if (!theme || theme.type !== "themebook" || theme.system.options?.isStoryTheme) continue;
-    if (theme.getFlag?.(MODULE_ID, "nascentTheme") === true) continue;
+    if (theme.getFlag?.(MODULE_ID, "nascentTheme") === true && !usesDiligentTrack(theme) && !pendingDiligentImprovements(theme)) continue;
     if (freeReforged > 0) insertReforgedImproveButton(container, actor, theme, freeReforged);
     if (container.querySelector(".litm-qol-improve-theme-button")) continue;
-    if (Number(theme.system.improve ?? 0) < 3) continue;
+    if (!canImproveTheme(theme)) continue;
     insertImproveThemeButton(container, actor, theme);
   }
 

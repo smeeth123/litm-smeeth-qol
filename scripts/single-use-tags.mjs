@@ -1,4 +1,5 @@
 import { installHelpRollState, captureHelpBookkeeping, applyHelpBookkeeping } from "./help-bookkeeping.mjs";
+import { applyLuckyBastard, applyVirtuoso } from "./lucky-bastard.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const SYSTEM_ID = "mist-engine-fvtt";
 const RECORDS = "singleUseTagRecords";
@@ -211,6 +212,8 @@ async function applyConsumption(payload, user) {
 export function runSingleUseOperation(payload, senderId = game.user.id) {
   const operation = operationQueue.then(() => {
     const user = game.users.get(senderId);
+    if (payload.action === "luckyBastard") return applyLuckyBastard(payload, user, renderNativeCard);
+    if (payload.action === "virtuoso") return applyVirtuoso(payload, user, renderNativeCard);
     return payload.action === "consume" ? applyConsumption(payload, user) : applySpend(payload, user);
   });
   operationQueue = operation.catch(() => {});
@@ -225,6 +228,9 @@ async function dispatch(payload) {
   }
   return runSingleUseOperation(payload);
 }
+
+export const useLuckyBastard = payload => dispatch({ action: "luckyBastard", messageUuid: payload.messageUuid });
+export const useVirtuoso = payload => dispatch({ action: "virtuoso", messageUuid: payload.messageUuid });
 
 function reportError(error) {
   console.error(`${MODULE_ID} | Roll tag operation failed.`, error);
@@ -328,6 +334,7 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
   proto.addShowDicePromise = function(promises, roll) {
     const context = this._litmQolRollContext;
     if (context) {
+      context.data.roll = { total: roll.total, dice: (roll.terms?.[0]?.results ?? []).map(result => result.result) };
       const render = roll.render;
       roll.render = async function(...args) {
         const html = await render.apply(this, args);
@@ -358,7 +365,7 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
       }
     }
     let help;
-    try { help = captureHelpBookkeeping(this, applied); }
+    try { help = captureHelpBookkeeping(this, applied, values); }
     catch (error) { ui.notifications.warn(error.message); return; }
     let finish;
     const context = { data: { id: foundry.utils.randomID(), rollType: this.rollType, actorId: this.actor.id, singleUse: [...uses.values()], help, group: clone(this._litmQolGroupRoll ?? null) },

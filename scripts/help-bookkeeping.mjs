@@ -1,3 +1,6 @@
+import { hasQuintessence } from "./quintessence-automation.mjs";
+import { FUMBLING_OVERFLOW } from "./fumbling-master.mjs";
+import { usesDiligentTrack } from "./diligent-drudge.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const LEDGER = "helpBookkeepingRolls";
 const PATCHED = Symbol.for(`${MODULE_ID}.helpRollState`);
@@ -51,7 +54,7 @@ function requireSource(actor, entry, { burning = false } = {}) {
   return tag;
 }
 
-export function captureHelpBookkeeping(app, applied) {
+export function captureHelpBookkeeping(app, applied, values = {}) {
   const burns = [];
   const relationships = [];
   const fellowshipTags = new Map();
@@ -102,6 +105,12 @@ export function captureHelpBookkeeping(app, applied) {
       }
     }
   }
+  for (const selection of values._litmQolFumblingSelections ?? []) {
+    const actor = game.actors.get(selection.actorId) ?? (selection.actorId === app.actor.id ? app.actor : null);
+    requireSource(actor, selection);
+    if (!hasQuintessence(actor, "Fumbling Master")) throw new Error("Fumbling Master is no longer on the weakness owner's sheet.");
+    weaknesses.set(`${selection.actorId}:${selection.itemId}`, { ...selection, fumblingMaster: true });
+  }
   if (burns.length && applied.filter(tag => tag.toBurn).length > 1) {
     throw new Error("Only one tag may be burned in a Group Action. Clear the extra burn before rolling.");
   }
@@ -141,7 +150,14 @@ export async function applyHelpBookkeeping(message, context) {
         Object.assign(tags[entry.index], { burned: true, selected: false, toBurn: false });
         change[`system.${field}`] = tags;
       } else {
-        change["system.improve"] = Math.min(3, Number(doc.system.improve ?? 0) + 1);
+        if (entry.fumblingMaster && !hasQuintessence(actor, "Fumbling Master")) {
+          throw new Error("Fumbling Master is no longer on the weakness owner's sheet.");
+        }
+        const total = Number(doc.system.improve ?? 0) + (entry.fumblingMaster ? 2 : 1);
+        change["system.improve"] = usesDiligentTrack(doc) ? total : Math.min(3, total);
+        if (entry.fumblingMaster && !usesDiligentTrack(doc) && total > 3) {
+          change[`flags.${MODULE_ID}.${FUMBLING_OVERFLOW}`] = Math.max(0, Number(doc.getFlag(MODULE_ID, FUMBLING_OVERFLOW)) || 0) + total - 3;
+        }
       }
       ledger.push(receipt);
       change[`flags.${MODULE_ID}.${LEDGER}`] = ledger;

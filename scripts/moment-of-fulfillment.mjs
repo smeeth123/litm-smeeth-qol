@@ -1,3 +1,4 @@
+import { browserSources, loadBrowserItems } from "./theme-browser.mjs";
 import { awardPromise, completeMomentOfFulfillment, storedPromise } from "./promise-manager.mjs";
 import { runHeroCreator } from "./hero-creator.mjs";
 
@@ -347,16 +348,16 @@ async function commitReforged(actor, draft, benefits) {
 }
 
 async function chooseQuintessence(saved = {}) {
-  const worldItems = game.items.filter(item => item.type === "quintessence").sort((a, b) => a.name.localeCompare(b.name));
-  const rows = worldItems.map(item => `
+  const { entries, failed } = await loadBrowserItems("quintessence");
+  const rows = entries.map(({ item, source }) => `
     <label class="litm-qol-moment-choice">
-      <input type="checkbox" name="quintessenceChoice" value="world:${item.id}" ${saved.mode === "world" && saved.id === item.id ? "checked" : ""}>
-      <span><strong>${foundry.utils.escapeHTML(item.name)}</strong>${item.system.description ? `<small>${foundry.utils.escapeHTML(plainText(item.system.description))}</small>` : ""}</span>
+      <input type="checkbox" name="quintessenceChoice" value="${escapeAttribute(item.uuid)}" ${((saved.mode === "source" && saved.uuid === item.uuid) || (saved.mode === "world" && source.id === "world" && saved.id === item.id)) ? "checked" : ""}>
+      <span><strong>${foundry.utils.escapeHTML(item.name)}</strong><small>${foundry.utils.escapeHTML(source.label)}</small>${item.system.description ? `<small>${foundry.utils.escapeHTML(plainText(item.system.description))}</small>` : ""}</span>
     </label>`).join("");
   return foundry.applications.api.DialogV2.wait({
     window: { title: "Moment of Fulfillment — Gain a Quintessence" },
     classes: ["litm-qol-system-dialog", "litm-qol-moment-window"],
-    content: `<div class="litm-qol-moment-dialog litm-qol-quintessence-dialog"><p>Choose a Quintessence from the world, or create a new one. See Core Book Vol. I, page 194.</p><div class="litm-qol-moment-choice-list litm-qol-quintessence-list">${rows || '<p class="notes">No world Quintessences are available.</p>'}<label class="litm-qol-moment-choice"><input type="checkbox" name="quintessenceChoice" value="create" ${saved.mode === "create" ? "checked" : ""}><span><strong>Create a new Quintessence</strong></span></label></div><div class="litm-qol-quintessence-create"><label><strong>Name</strong><input type="text" name="quintessenceName" value="${escapeAttribute(saved.name)}" autocomplete="off"></label><label><strong>Description</strong><textarea name="quintessenceDescription" rows="4">${foundry.utils.escapeHTML(saved.description ?? "")}</textarea></label></div></div>`,
+    content: `<div class="litm-qol-moment-dialog litm-qol-quintessence-dialog"><p>Choose a Quintessence from the configured sources, or create a new one. See Core Book Vol. I, page 194.</p><div class="litm-qol-moment-choice-list litm-qol-quintessence-list">${failed.length ? `<p class="notes">Could not load: ${foundry.utils.escapeHTML(failed.join(', '))}. Reopen this dialog to retry.</p>` : ""}${rows || '<p class="notes">No Quintessences are available from the configured sources.</p>'}<label class="litm-qol-moment-choice"><input type="checkbox" name="quintessenceChoice" value="create" ${saved.mode === "create" ? "checked" : ""}><span><strong>Create a new Quintessence</strong></span></label></div><div class="litm-qol-quintessence-create"><label><strong>Name</strong><input type="text" name="quintessenceName" value="${escapeAttribute(saved.name)}" autocomplete="off"></label><label><strong>Description</strong><textarea name="quintessenceDescription" rows="4">${foundry.utils.escapeHTML(saved.description ?? "")}</textarea></label></div></div>`,
     render: (_event, dialog) => {
       const root = dialog.element;
       const boxes = [...root.querySelectorAll('[name="quintessenceChoice"]')];
@@ -384,17 +385,19 @@ async function chooseQuintessence(saved = {}) {
         const selected = button.form.querySelector('[name="quintessenceChoice"]:checked')?.value;
         if (!selected) return null;
         if (selected === "create") return { mode: "create", name: button.form.elements.quintessenceName.value.trim(), description: button.form.elements.quintessenceDescription.value.trim() };
-        return { mode: "world", id: selected.slice(6) };
+        return { mode: "source", uuid: selected };
       } }
     ],
     rejectClose: false
   });
 }
 
-function quintessenceData(choice) {
+async function quintessenceData(choice) {
   if (choice?.mode === "create") return { name: choice.name, type: "quintessence", system: { description: choice.description ?? "" } };
-  const source = choice?.mode === "world" ? game.items.get(choice.id) : null;
-  if (!source || source.type !== "quintessence") return null;
+  const source = choice?.mode === "world" ? game.items.get(choice.id)
+    : choice?.mode === "source" ? await fromUuid(choice.uuid) : null;
+  if (!source || source.type !== "quintessence" || !source.visible) return null;
+  if (!browserSources("quintessence").some(entry => entry.id === (source.pack || "world"))) return null;
   const data = source.toObject();
   delete data._id;
   delete data.folder;
@@ -404,7 +407,7 @@ function quintessenceData(choice) {
 }
 
 async function confirmQuintessence(choice) {
-  const data = quintessenceData(choice);
+  const data = await quintessenceData(choice);
   if (!data) return null;
   const description = data.system?.description
     ? await TextEditor.enrichHTML(String(data.system.description), { async: true })
