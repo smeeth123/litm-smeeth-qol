@@ -1528,7 +1528,9 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
 .litm-qol-trope-content p { margin: 0.25rem 0 0.5rem; }
 .litm-qol-trope-content label { display: flex; flex-direction: column; gap: 0.25rem; }
 .litm-qol-trope-content input { color: #efe2c7; background: #1e1922; border: 1px solid #8e7756; }
+.litm-qol-trope-content header { display: grid; gap: 0.65rem; }
 .litm-qol-trope-content header input { font-size: 1.4rem; height: 2.25rem; }
+.litm-qol-trope-content header input[name="system.category"] { font-size: 1rem; height: 2rem; }
 .litm-qol-trope-slot { display: flex; align-items: center; gap: 0.4rem; margin: 0.4rem 0; padding: 0.45rem; border: 1px solid #8e7756; border-radius: 4px; background: #352d3a; }
 .litm-qol-trope-number { color: #e7ca8b; width: 1rem; flex: 0 0 auto; }
 .litm-qol-trope-kit { flex: 1; min-width: 0; overflow-wrap: anywhere; }

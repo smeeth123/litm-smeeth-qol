@@ -37,6 +37,8 @@ After updating on Forge, restart the hosted game and reload every connected clie
 
 Create a **Trope** from the Items directory’s **Create Item** dialog. A Trope contains a rich-text description, three core Themekits, three additional Themekits from which a Hero will choose one, and three Backpack tags from which they will choose one.
 
+Use the optional **Category** field beneath Name to organize a Trope, for example Village Folk or Oldways Practitioners. It saves with the Item in the world or a compendium. Existing Tropes without a category start blank.
+
 Use **Choose** or drag a Themekit from World Items or a compendium into any of the six kit slots. **Open** inspects the linked kit and **Clear** removes the link. The chooser uses the system’s Themekit source settings. Kits remain linked to their source documents, so those sources need to remain available. Enter the Backpack choices directly in the three tag fields. Changes save automatically, and incomplete Tropes can be finished later. Tropes are ordinary Items that can be duplicated, exported, or stored in Item compendiums.
 
 In **Hero Creator**, choose **Start with a Trope** to browse visible Trope Items from the world and Item compendiums. Preview its description and core kits, choose the fourth kit and one Backpack tag, then customize all four themes through the normal tag, weakness, and Quest steps. Missing or unavailable core kits prevent using a Trope; individual unavailable alternatives cannot be selected. The native Themekit source settings apply to linked kits. **Build freely** retains the individual Themebook/Themekit choices. Reforging can use a Trope’s themes while retaining the Hero’s existing Backpack.

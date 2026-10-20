@@ -13,6 +13,7 @@ export class TropeData extends foundry.abstract.TypeDataModel {
       required: true, nullable: false, min: 3, max: 3, initial: () => ["", "", ""]
     });
     return {
+      category: new StringField({ required: true, nullable: false, blank: true, initial: "" }),
       description: new HTMLField({ required: true, nullable: false, blank: true, initial: "" }),
       themeKits: slots(),
       themeKitChoices: slots(),
@@ -73,7 +74,8 @@ export class TropeSheet extends foundry.applications.sheets.ItemSheetV2 {
     }));
     const content = document.createElement("div");
     content.className = "litm-qol-trope-content";
-    content.innerHTML = `<header><label>Name<input type="text" name="name" value="${attr(this.document.name)}" ${disabled}></label></header>
+    content.innerHTML = `<header><label>Name<input type="text" name="name" value="${attr(this.document.name)}" ${disabled}></label>
+      <label>Category<input type="text" name="system.category" value="${attr(system.category ?? "")}" placeholder="e.g. Village Folk" ${disabled}></label></header>
       <section class="litm-qol-trope-description"><h2>Description</h2><div data-description></div></section>
       ${groups.join("")}
       <section><h2>Choose One Backpack Tag</h2><p>The Hero chooses one of these three tags.</p>
@@ -104,6 +106,9 @@ export class TropeSheet extends foundry.applications.sheets.ItemSheetV2 {
 
   _processFormData(event, form, formData) {
     const data = super._processFormData(event, form, formData);
+    if (data.system && Object.hasOwn(data.system, "category")) {
+      data.system.category = String(data.system.category ?? "").trim();
+    }
     if (data.system?.backpackTags) {
       data.system.backpackTags = [0, 1, 2].map(index => String(data.system.backpackTags[index] ?? "").trim());
     }
