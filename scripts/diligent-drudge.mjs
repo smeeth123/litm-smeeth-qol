@@ -1,7 +1,10 @@
+import { improveResetUpdate, FUMBLING_OVERFLOW } from "./fumbling-master.mjs";
 import { hasQuintessence } from "./quintessence-automation.mjs";
 
 const MODULE_ID = "litm-smeeth-qol";
 export const DILIGENT_FLAG = "diligentImprovements";
+const TRACK_SPENT = "diligentTrackSpent";
+const legacyCredits = theme => Math.max(0, Math.floor(Number(theme?.getFlag?.(MODULE_ID, DILIGENT_FLAG)) || 0));
 const PATCHED = Symbol.for(`${MODULE_ID}.diligentDrudge`);
 const markQueues = new Map();
 
@@ -15,7 +18,9 @@ export function usesDiligentTrack(theme) {
 }
 
 export function pendingDiligentImprovements(theme) {
-  return Math.max(0, Math.floor(Number(theme?.getFlag?.(MODULE_ID, DILIGENT_FLAG)) || 0));
+  const ready = usesDiligentTrack(theme) && Number(theme.system.improve ?? 0) >= 5;
+  const spent = Math.min(2, Math.max(0, Number(theme?.getFlag?.(MODULE_ID, TRACK_SPENT)) || 0));
+  return legacyCredits(theme) + (ready ? 2 - spent : 0);
 }
 
 export function canImproveTheme(theme) {
@@ -23,16 +28,31 @@ export function canImproveTheme(theme) {
     || (!usesDiligentTrack(theme) && Number(theme.system?.improve ?? 0) >= 3);
 }
 
-/** Award and reset in the same document update as the fifth mark. */
+/** Spend one choice; a completed five-mark track clears only after both choices. */
+export function diligentImprovementUpdate(theme) {
+  const banked = legacyCredits(theme);
+  if (banked) return { [`flags.${MODULE_ID}.${DILIGENT_FLAG}`]: banked - 1 };
+  if (!usesDiligentTrack(theme) || Number(theme.system.improve ?? 0) < 5) throw new Error("The Diligent Drudge track is not full.");
+  const spent = Math.max(0, Number(theme.getFlag(MODULE_ID, TRACK_SPENT)) || 0);
+  if (spent >= 2) throw new Error("Both Diligent Drudge improvements have already been used.");
+  return spent === 0 ? { [`flags.${MODULE_ID}.${TRACK_SPENT}`]: 1 }
+    : { ...improveResetUpdate(theme, { maximum: 5 }), [`flags.${MODULE_ID}.${TRACK_SPENT}`]: 0 };
+}
+
+/** Keep five marks on the track instead of converting them into banked choices. */
 export function applyDiligentAward(theme, changes) {
-  if (!usesDiligentTrack(theme)) return;
   const next = changes["system.improve"] ?? changes.system?.improve;
-  if (!Number.isInteger(next) || next < 5 || next <= Number(theme.system.improve ?? 0)) return;
-  const cycles = Math.floor(next / 5);
-  if (Object.hasOwn(changes, "system.improve")) changes["system.improve"] = next % 5;
-  else changes.system.improve = next % 5;
-  foundry.utils.setProperty(changes, `flags.${MODULE_ID}.${DILIGENT_FLAG}`,
-    pendingDiligentImprovements(theme) + 2 * cycles);
+  if (!Number.isInteger(next)) return;
+  if (next === 0 && theme.getFlag?.(MODULE_ID, TRACK_SPENT)) {
+    foundry.utils.setProperty(changes, `flags.${MODULE_ID}.${TRACK_SPENT}`, 0);
+  }
+  if (!usesDiligentTrack(theme) || next <= 5) return;
+  if (Object.hasOwn(changes, "system.improve")) changes["system.improve"] = 5;
+  else changes.system.improve = 5;
+  // Explicit double-Improve awards may cross the end of the track. Preserve
+  // the excess marks for the next track, without awarding or banking choices.
+  const overflow = Math.max(0, Number(theme.getFlag?.(MODULE_ID, FUMBLING_OVERFLOW)) || 0);
+  foundry.utils.setProperty(changes, `flags.${MODULE_ID}.${FUMBLING_OVERFLOW}`, overflow + next - 5);
 }
 
 /** Native resetTags caps weakness-earned Improve at three. Extend only the
@@ -43,7 +63,7 @@ export function installDiligentRolls(DiceRollApp) {
   const original = proto.resetTags;
   proto.resetTags = async function(...args) {
     const skipped = [...this.actor.items].filter(theme => usesDiligentTrack(theme)
-      && Number(theme.system.improve ?? 0) >= 3
+      && Number(theme.system.improve ?? 0) >= 3 && Number(theme.system.improve ?? 0) < 5
       && this.selectedTags.some(tag => tag.themebookId === theme.id
         && (tag.weakness || tag.powerTag) && !tag.positive))
       .map(theme => ({ theme, marks: Number(theme.system.improve) }));
@@ -76,7 +96,7 @@ export function renderDiligentTracks(actor, root) {
       markers.append(marker);
     }
     track.prepend(markers);
-    track.dataset.tooltip = "Diligent Drudge: five Improve marks earn two improvements for this theme and reset this track.";
+    track.dataset.tooltip = "Diligent Drudge: five Improve marks unlock two improvements. The track stays full until both are used.";
     if (track.dataset.litmQolDiligentBound) continue;
     track.dataset.litmQolDiligentBound = "true";
     track.addEventListener("click", event => {
@@ -87,7 +107,7 @@ export function renderDiligentTracks(actor, root) {
       const key = theme.uuid ?? `${actor.id}:${theme.id}`;
       const previous = markQueues.get(key) ?? Promise.resolve();
       const next = previous.then(() => {
-        if (!usesDiligentTrack(theme)) return;
+        if (!usesDiligentTrack(theme) || Number(theme.system.improve ?? 0) >= 5) return;
         return theme.update({ "system.improve": Number(theme.system.improve ?? 0) + 1 });
       }).catch(error => {
         console.error(`${MODULE_ID} | Could not mark Diligent Drudge Improve`, error);
@@ -119,6 +139,8 @@ Hooks.on("updateItem", (item, changes) => {
   if (changes["system.improve"] !== undefined || changes.system?.improve !== undefined
       || changes.flags?.[MODULE_ID]?.[DILIGENT_FLAG] !== undefined
       || changes[`flags.${MODULE_ID}.${DILIGENT_FLAG}`] !== undefined
+      || changes.flags?.[MODULE_ID]?.[TRACK_SPENT] !== undefined
+      || changes[`flags.${MODULE_ID}.${TRACK_SPENT}`] !== undefined
       || item.type === "quintessence") {
     void refreshDiligentSheet(item.parent).catch(error => {
       console.error(`${MODULE_ID} | Could not refresh Improve marks`, error);

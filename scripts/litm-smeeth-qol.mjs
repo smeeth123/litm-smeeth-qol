@@ -1,7 +1,7 @@
 import { improveResetUpdate, FUMBLING_OVERFLOW } from "./fumbling-master.mjs";
 import { renderQuintessenceUsage } from "./quintessence-usage.mjs";
 import { renderLuckyBastard, renderVirtuoso } from "./lucky-bastard.mjs";
-import { DILIGENT_FLAG, usesDiligentTrack, canImproveTheme, pendingDiligentImprovements, renderDiligentTracks } from "./diligent-drudge.mjs";
+import { diligentImprovementUpdate, DILIGENT_FLAG, usesDiligentTrack, canImproveTheme, pendingDiligentImprovements, renderDiligentTracks } from "./diligent-drudge.mjs";
 const diligentWorkflows = new Set();
 import "./tropes.mjs";
 import { importSystemModule } from "./system-imports.mjs";
@@ -691,7 +691,7 @@ async function sendThemeImprovementSummary(actor, theme, improvementDescription,
       <ul>
         <li>${improvement}</li>
         ${rewriteLine}
-        <li>${spendDiligent ? `One Diligent Drudge improvement spent; ${pendingDiligentImprovements(theme)} remaining. Improve marks were unchanged.` : freeReforged ? "One inherited Be Reforged improvement spent; this theme’s Improve marks were unchanged." : `Improve is now ${Number(theme.system.improve ?? 0)}.`}</li>
+        <li>${spendDiligent ? `One Diligent Drudge improvement spent; ${pendingDiligentImprovements(theme)} remaining. Improve is now ${Number(theme.system.improve ?? 0)}.` : freeReforged ? "One inherited Be Reforged improvement spent; this theme’s Improve marks were unchanged." : `Improve is now ${Number(theme.system.improve ?? 0)}.`}</li>
       </ul>
     </div>`;
 
@@ -712,7 +712,7 @@ async function commitThemeImprovement(actor, theme, action, details, rewrite, { 
   if (spendDiligent) {
     const remaining = pendingDiligentImprovements(theme);
     if (remaining < 1) throw new Error("No earned Diligent Drudge improvements remain.");
-    update[`flags.${MODULE_ID}.${DILIGENT_FLAG}`] = remaining - 1;
+    Object.assign(update, diligentImprovementUpdate(theme));
   }
 
   if (rewrite?.choice) {

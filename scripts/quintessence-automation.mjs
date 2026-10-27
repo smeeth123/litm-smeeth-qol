@@ -1,4 +1,5 @@
-/** Beyond Luck automation for Mist Engine 14.5.4.
+import { importSystemModule } from "./system-imports.mjs";
+/** Beyond Luck automation for Mist Engine 14.5.4 and later.
  * executeBeyondLuck adapts the system's executeRoll (MIT; see licenses/).
  * Installed beneath the existing Trade Power and single-use wrappers so their
  * approval, spending, contribution and consumption behavior is preserved.
@@ -104,6 +105,12 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
                 chatVars
             );
             ChatMessage.create({ content: html, speaker });
+        }
+
+        // Preserve 14.5.5 native helping relationship cleanup on Beyond Luck rolls.
+        if (this.helpingTags?.length) {
+            const { Collaboration } = await importSystemModule("lib/collaboration.mjs");
+            Collaboration?.reportHelpUsed?.(this.helpingTags);
         }
 
         this.numModPositive = 0;

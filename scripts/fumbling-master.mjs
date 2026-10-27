@@ -71,10 +71,11 @@ export function finalizeFumblingMaster(app, values, DiceRollApp) {
 
 /** Keep overflow from a double mark at the end of an ordinary three-box track.
  * The normal improvement is still chosen through the existing workflow. */
-export function improveResetUpdate(theme) {
+export function improveResetUpdate(theme, { maximum = 3 } = {}) {
   const saved = Math.max(0, Math.floor(Number(theme.getFlag?.(MODULE_ID, FUMBLING_OVERFLOW)) || 0));
-  return { "system.improve": Math.min(3, saved),
-    ...(saved ? { [`flags.${MODULE_ID}.${FUMBLING_OVERFLOW}`]: Math.max(0, saved - 3) } : {}) };
+  return { "system.improve": Math.min(maximum, saved),
+    ...(theme.getFlag?.(MODULE_ID, "diligentTrackSpent") ? { [`flags.${MODULE_ID}.diligentTrackSpent`]: 0 } : {}),
+    ...(saved ? { [`flags.${MODULE_ID}.${FUMBLING_OVERFLOW}`]: Math.max(0, saved - maximum) } : {}) };
 }
 
 export function renderFumblingMaster(app, root, DiceRollApp) {

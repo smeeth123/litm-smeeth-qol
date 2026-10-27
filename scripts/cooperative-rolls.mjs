@@ -3,6 +3,9 @@ import { recordForTag } from "./single-use-tags.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const isCharacterActor = actor => ["character", "litm-character"].includes(actor?.type);
 let helpSocket = null;
+let nativeCollaboration = null;
+export const canBurnContribution = tag => Boolean(tag && !tag.singleUse && ["themebook", "backpack"].includes(tag.source));
+const sourceLabel = tag => ({ themebook: "power tag", backpack: "Backpack", rote: "Rote", floating: "story tag", relationship: "relationship" })[tag.source] ?? tag.source;
 const helpRequests = new Map();
 const helpStatusDialogs = new Map();
 const helpRollApps = new Map();
@@ -14,6 +17,21 @@ function getPlayerCharacter(user) {
 
 export function getAvailablePowerTags(actor) {
   if (!actor) return [];
+  const native = nativeCollaboration?.contributableTags(actor);
+  if (nativeCollaboration?.BURNABLE_SOURCES instanceof Set && native && native.every(entry => entry && typeof entry === "object" && entry.source)) {
+    return native.flatMap(entry => {
+      const source = ({ powertag: "themebook", "floating-tag": "floating", "fellowship-relationship": "relationship" })[entry.source] ?? entry.source;
+      const singleUseRecord = source === "floating" ? recordForTag(actor, entry.index) : null;
+      if (source === "floating" && actor.system.floatingTagsAndStatuses[entry.index]?.litmQolId && !singleUseRecord) return [];
+      const tag = { id: source === "relationship" ? `relationship:${entry.index}` : source === "floating" ? `floating:${entry.index}` : `${source}:${entry.docId}:${entry.index}`,
+        name: entry.name, actorId: actor.id, actorName: actor.name, source, index: entry.index,
+        itemId: ["themebook", "backpack", "rote"].includes(source) ? entry.docId : undefined,
+        singleUse: Boolean(singleUseRecord), singleUseRecordId: singleUseRecord?.id ?? null,
+        ...(source === "relationship" ? { companion: actor.system.fellowships[entry.index]?.companion ?? "" } : {}) };
+      tag.canBurn = entry.burnable && canBurnContribution(tag);
+      return [tag];
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }
   const tags = [];
 
   for (const item of actor.items ?? []) {
@@ -72,7 +90,10 @@ export function getAvailablePowerTags(actor) {
     tags.push({ id: `relationship:${index}`, name: entry.relationshipTag.trim(), actorId: actor.id,
       actorName: actor.name, source: "relationship", index, companion: entry.companion ?? "", canBurn: false });
   }
-  return tags.sort((a, b) => a.name.localeCompare(b.name));
+  for (const item of actor.items ?? []) {
+    if (item.type === "rote" && item.name?.trim()) tags.push({ id: `rote:${item.id}:0`, name: item.name.trim(), actorId: actor.id, actorName: actor.name, source: "rote", itemId: item.id, index: 0, canBurn: false });
+  }
+  return tags.map(tag => ({ ...tag, canBurn: canBurnContribution(tag) })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function getAvailableWeaknesses(actor) {
@@ -147,6 +168,10 @@ function openHelpStatusDialog(request) {
 export function tagFromSheetElement(element, tags) {
   if (!element) return null;
 
+  if (element.matches(".rote-title-selectable")) {
+    return tags.find(tag => tag.source === "rote" && tag.itemId === element.dataset.itemId) ?? null;
+  }
+
   if (element.matches(".pt-selectable")) {
     const itemId = element.dataset.itemId ?? "";
     const index = Number(element.dataset.powertagIndex);
@@ -196,6 +221,7 @@ async function chooseHelpTagFromCharacterSheet(actor, request) {
     };
 
     const confirmTag = async (tag, burn = false) => {
+      if (!tag || (burn && !canBurnContribution(tag))) return;
       confirming = true;
       let result = null;
       const power = burn ? 3 : 1;
@@ -246,11 +272,11 @@ async function chooseHelpTagFromCharacterSheet(actor, request) {
       banner.innerHTML = `<strong>${request.mode === "group" ? "Choose one tag representing your Hero’s most significant contribution to the joint effort." : "Choose one tag to help " + foundry.utils.escapeHTML(request.requesterActorName) + "."}</strong><span>${burnInstruction} Burned tags cannot be contributed.</span>`;
       // This selector also reaches tags on a hidden sheet tab or compact view.
       const picker = document.createElement("div"); picker.className = "litm-qol-contribution-picker";
-      picker.innerHTML = `<label>Available tag<select name="contribution">${tags.map(tag => `<option value="${tag.id}">${foundry.utils.escapeHTML(tag.name)}${tag.source === "relationship" ? " (relationship)" : ""}</option>`).join("")}</select></label>
+      picker.innerHTML = `<label>Available tag<select name="contribution">${tags.map(tag => `<option value="${tag.id}">${foundry.utils.escapeHTML(tag.name)}${` (${sourceLabel(tag)})`}</option>`).join("")}</select></label>
         ${request.mode === "group" && !request.existingBurnPresent ? '<label><input type="checkbox" name="burnContribution"> Burn for 3 Power</label>' : ''}
         <button type="button">Use Selected Tag</button>`;
       const select = picker.querySelector("select"); const burnBox = picker.querySelector("input");
-      const syncBurn = () => { const tag = tags.find(tag => tag.id === select.value); if (burnBox) { burnBox.disabled = tag?.singleUse || tag?.source === "relationship"; if (burnBox.disabled) burnBox.checked = false; } };
+      const syncBurn = () => { const tag = tags.find(tag => tag.id === select.value); if (burnBox) { burnBox.disabled = !canBurnContribution(tag); if (burnBox.disabled) burnBox.checked = false; } };
       select.addEventListener("change", syncBurn); syncBurn();
       picker.querySelector("button").addEventListener("click", () => { if (!confirming) void confirmTag(tags.find(tag => tag.id === select.value), Boolean(burnBox?.checked)); });
       banner.append(picker);
@@ -282,7 +308,7 @@ async function chooseHelpTagFromCharacterSheet(actor, request) {
         const itemId = burnControl.dataset.itemId ?? "";
         const index = Number(burnControl.dataset.powertagIndex);
         const tag = tags.find(entry => entry.itemId === itemId && entry.index === index) ?? null;
-        if (!tag || tag.singleUse || tag.source === "relationship") {
+        if (!canBurnContribution(tag)) {
           ui.notifications.warn("That tag cannot be burned as a Group Action contribution.");
           return;
         }
@@ -291,7 +317,7 @@ async function chooseHelpTagFromCharacterSheet(actor, request) {
         return;
       }
 
-      const element = event.target.closest?.(".pt-selectable, .fts-selectable, .pcfr-selectable");
+      const element = event.target.closest?.(".pt-selectable, .fts-selectable, .pcfr-selectable, .rote-title-selectable");
       if (!element || !root.contains(element)) return;
 
       const tag = tagFromSheetElement(element, tags);
@@ -358,7 +384,7 @@ async function socketPromptGmForHelpApproval(request) {
       const tag = getAvailablePowerTags(actor).find(tag => tag.id === entry.response.tag?.id && tag.name === entry.response.tag?.name);
       if (!actor || actor.id !== entry.response.tag?.actorId || !tag || seenActors.has(actor.id)) return false;
       seenActors.add(actor.id);
-      entry.response = { ...entry.response, tag, burn: request.mode === "group" && Boolean(entry.response.burn) && !tag.singleUse && tag.source !== "relationship" };
+      entry.response = { ...entry.response, tag, burn: request.mode === "group" && Boolean(entry.response.burn) && canBurnContribution(tag) };
       return true;
     });
 
@@ -584,7 +610,7 @@ function applyApprovedHelpToRoll(payload) {
     activeApp.selectedTags = activeApp.selectedTags.filter(tag => !["litm-qol-help", "litm-qol-fellowship"].includes(tag.source));
     let burnAlreadyUsed = activeApp.selectedTags.some(tag => Boolean(tag?.toBurn));
     for (const contribution of payload.contributions ?? []) {
-      const contributionBurn = Boolean(contribution.burn) && !burnAlreadyUsed;
+      const contributionBurn = Boolean(contribution.burn) && canBurnContribution(contribution.tag) && !burnAlreadyUsed;
       if (contributionBurn) burnAlreadyUsed = true;
       activeApp.selectedTags.push({
         name: `${contribution.tag.name} (from ${contribution.tag.actorName})`,
@@ -625,6 +651,10 @@ function applyApprovedHelpToRoll(payload) {
       });
       activeApp._litmQolGroupActors = [...new Set(request.targetUserIds.map(id => getPlayerCharacter(game.users.get(id))?.id).filter(Boolean))];
       activeApp._litmQolApproved = true;
+      if (activeApp.selectedExtras instanceof Set) {
+        activeApp.selectedExtras.clear();
+        for (const tag of activeApp.selectedTags.filter(tag => tag.source === "litm-qol-fellowship")) activeApp.selectedExtras.add(`${tag.helperActorId}:${tag.helperTagIndex}`);
+      }
       syncGroupContributions(activeApp);
     }
     applied = true;
@@ -679,6 +709,7 @@ export function clearCooperativeRoll(app) {
   app._litmQolHelpPending = false;
   app._litmQolGroupRoll = null;
   app._litmQolGroupActors = null;
+  app.selectedExtras?.clear?.();
   for (const [requestId, rollApp] of helpRollApps) if (rollApp === app) {
     const request = helpRequests.get(requestId); if (request) request.canceled = true;
     const note = helpStatusDialogs.get(requestId)?.element?.querySelector(".litm-qol-help-status-note");
@@ -696,11 +727,21 @@ export function syncGroupContributions(app) {
   if (!participantIds.includes(app.actor?.id)) app.actor = game.actors.get(participantIds[0]);
 }
 
+export function syncNativeFellowshipSelections(app) {
+  if (!(app.selectedExtras instanceof Set) || typeof app.fellowshipTags !== "function") return;
+  const selected = app.fellowshipTags().filter(tag => app.selectedExtras.has(tag.key));
+  app.selectedTags = (app.selectedTags ?? []).filter(tag => tag.source !== "litm-qol-fellowship");
+  for (const tag of selected) app.selectedTags.push({ name: `${tag.name} (Fellowship: ${tag.themecardName})`, originalName: tag.name,
+    positive: true, source: "litm-qol-fellowship", helperActorId: tag.themecardId,
+    helperTagSource: "fellowship-theme", helperTagIndex: tag.index, isClickable: false });
+}
+
 export async function openGroupRoll(app, DiceRollApp) {
   if (!app._litmQolApproved || app._litmQolHelpPending || !app.actor) return;
   if (DiceRollApp.instance?.rendered) {
     ui.notifications.warn("Finish or close the current roll dialog before rolling for the group."); return;
   }
+  syncNativeFellowshipSelections(app);
   const contributions = foundry.utils.deepClone(app.selectedTags);
   const actor = app.actor;
   const actorIds = app._litmQolGroupActors ?? app.contributions.map(entry => entry.actorId);
@@ -721,6 +762,7 @@ export async function openGroupRoll(app, DiceRollApp) {
 
 const INTEGRATED = Symbol.for(`${MODULE_ID}.cooperativeIntegration`);
 export function installCooperativeRolls(Collaboration, DiceRollApp, GroupActionApp) {
+  nativeCollaboration = Collaboration;
   if (Collaboration[INTEGRATED]) return;
   Object.defineProperty(Collaboration, INTEGRATED, { value: true });
   Collaboration.requestHelp = app => choosePlayersForHelp(app, "help");
@@ -759,7 +801,16 @@ export function installCooperativeRolls(Collaboration, DiceRollApp, GroupActionA
       syncGroupContributions(this); this.render();
     }
   });
+  if (typeof GroupActionApp.prototype.fellowshipTags === "function") {
+    GroupActionApp.prototype.fellowshipTags = function() {
+      const actorIds = this._litmQolGroupActors ?? this.contributions.map(entry => entry.actorId);
+      return getFellowshipPowerTags(actorIds).map(tag => ({ key: `${tag.actorId}:${tag.index}`, name: tag.name,
+        themecardId: tag.actorId, themecardName: tag.actorName, index: tag.index,
+        selected: this.selectedExtras.has(`${tag.actorId}:${tag.index}`) }));
+    };
+  }
   GroupActionApp.prototype.computePower = function() {
+    syncNativeFellowshipSelections(this);
     const count = DiceRollApp.calculatePowerTags(this.selectedTags ?? []);
     return Math.max(1, count.positive - count.negative + (this.gmMod || 0));
   };
@@ -800,7 +851,7 @@ export function renderGroupOptions(app) {
   type.disabled = Boolean(app._litmQolHelpPending);
   type.addEventListener("change", () => { app.rollType = type.value; });
   const shared = (app.selectedTags ?? []).filter(tag => tag.source === "litm-qol-fellowship");
-  if (shared.length) {
+  if (shared.length && typeof app.fellowshipTags !== "function") {
     const note = document.createElement("p"); note.textContent = `Fellowship theme tags: ${shared.map(tag => tag.name).join(", ")}`;
     options.append(note);
   }

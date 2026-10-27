@@ -72,7 +72,11 @@ export function captureHelpBookkeeping(app, applied, values = {}) {
       const entry = { actorId: card?.id, source: "fellowship-theme", index: tag.index, name: tag.name };
       const source = requireSource(card, entry);
       if (source.burned) throw new Error("A selected Fellowship power is scratched. Refresh the selection before rolling.");
-      fellowshipTags.set(`${entry.actorId}:${entry.index}`, entry);
+      // 14.5.5+ scratches ordinary rolled Fellowship powers in resetTags.
+      // Group rolls skip native resetTags, so keep their receipt-backed cleanup.
+      const version = String(game.system?.version ?? "").split(".").map(Number);
+      const nativeScratch = version[0] > 14 || (version[0] === 14 && (version[1] > 5 || (version[1] === 5 && version[2] >= 5)));
+      if (!nativeScratch || app._litmQolGroupRoll) fellowshipTags.set(`${entry.actorId}:${entry.index}`, entry);
       continue;
     }
     if (tag.source === "litm-qol-fellowship") {
@@ -90,6 +94,9 @@ export function captureHelpBookkeeping(app, applied, values = {}) {
       if (relationship.scratched || tag.toBurn) throw new Error(`The relationship “${entry.name}” is scratched or cannot be burned. Request another contribution.`);
       relationships.push(entry);
     }
+    if (tag.toBurn && (!tag.helperContributionBurn || tag.helperTagSingleUse || !["themebook", "backpack"].includes(tag.helperTagSource))) {
+      throw new Error("Only a theme power tag or Backpack item may be burned as a group contribution.");
+    }
     if (tag.helperContributionBurn && tag.toBurn && !tag.helperTagSingleUse) {
       const entry = { actorId: tag.helperActorId, source: tag.helperTagSource,
         itemId: tag.helperTagItemId, index: tag.helperTagIndex, name: tag.originalName };
@@ -100,7 +107,8 @@ export function captureHelpBookkeeping(app, applied, values = {}) {
       const entry = { actorId: tag.helperActorId, itemId: tag.helperThemebookId,
         source: "weakness", index: tag.helperWeaknessIndex, name: tag.originalName };
       requireSource(game.actors.get(entry.actorId), entry);
-      if (entry.actorId !== app.actor.id || !nativeThemes.has(entry.itemId)) {
+      if (!game.actors.get(entry.actorId)?.items.get(entry.itemId)?.system.options?.isStoryTheme
+          && (entry.actorId !== app.actor.id || !nativeThemes.has(entry.itemId))) {
         weaknesses.set(`${entry.actorId}:${entry.itemId}`, entry);
       }
     }
@@ -154,7 +162,7 @@ export async function applyHelpBookkeeping(message, context) {
           throw new Error("Fumbling Master is no longer on the weakness owner's sheet.");
         }
         const total = Number(doc.system.improve ?? 0) + (entry.fumblingMaster ? 2 : 1);
-        change["system.improve"] = usesDiligentTrack(doc) ? total : Math.min(3, total);
+        change["system.improve"] = usesDiligentTrack(doc) ? (entry.fumblingMaster ? total : Math.min(5, total)) : Math.min(3, total);
         if (entry.fumblingMaster && !usesDiligentTrack(doc) && total > 3) {
           change[`flags.${MODULE_ID}.${FUMBLING_OVERFLOW}`] = Math.max(0, Number(doc.getFlag(MODULE_ID, FUMBLING_OVERFLOW)) || 0) + total - 3;
         }

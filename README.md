@@ -63,7 +63,7 @@ Right-clicking a status adds a **Reduce Status** option. Entering a number shift
 
 ### Fellowship Tags
 
-Normal relationship-tag scratching is handled by the system’s native roll cleanup; the module does not duplicate it. The module still scratches contributed relationship tags on their original Heroes in enhanced Help/Group rolls. Invoked Fellowship Themecard powers in ordinary Quick, Detailed, Reaction, and Group rolls are scratched only after their result message is created, using saved source references and retry-safe bookkeeping. Unrelated chat, cancellation, and rejected rolls cannot trigger scratching. Native weakness Improve remains intact.
+Normal relationship-tag scratching is handled by the system’s native roll cleanup. Invoked Fellowship Themecard powers are scratched after a completed roll and cannot be burned for extra Power. Enhanced Help/Group contributions update their original sources, with retry-safe bookkeeping for contributed relationships and shared Fellowship tags. Unrelated chat, cancellation, and rejected rolls cannot trigger scratching. Native weakness Improve remains intact.
 
 Open full and compact character sheets refresh automatically when their linked Fellowship Themecard changes, including selection, scratching/recovery, tags, trackers, and names. This works after closing/reopening and on every connected client receiving the document update. Refreshes replace stale cached references after assignment changes or deletion, preserve closed/minimized sheets, and coalesce rapid updates. No extra socket messages or document writes are used for display refresh.
 
@@ -245,7 +245,7 @@ Socketlib remains required. The module enhances the native **Request Help** and 
 
 Use **Request Help** beside Roll in the normal Quick, Detailed, or Reaction dialog. Choose active players with assigned Heroes; helpers accept or decline, select a tag from their sheet (or the available-tag selector on that sheet), and confirm it. The requester sees response statuses, and the Narrator reviews contributions and may add participant weaknesses before applying them.
 
-Eligible contributions include active theme power tags, unexpired backpack tags, positive floating story tags, single-use story tags, and unscratched Fellowship relationship tags. Sources with identical names remain separate choices. Planned, burned, scratched, and expired entries are unavailable. A player cannot contribute through two accounts assigned the same Hero.
+Eligible contributions include active theme power tags, unexpired backpack tags, Rote title tags, positive floating story tags, single-use story tags, and unscratched Fellowship relationship tags. Sources with identical names remain separate choices, and the picker labels each tag’s source. Planned, burned, scratched, and expired entries are unavailable. A player cannot contribute through two accounts assigned the same Hero.
 
 - Help contributes +1 Power and cannot be burned.
 - Relationships contribute +1 and scratch the original relationship only after a completed roll invokes them; they cannot be burned.
@@ -260,7 +260,7 @@ Eligible contributions include active theme power tags, unexpired backpack tags,
 Open **Acting Together** from the system’s Mist toolbar. This native tool is available to both the Narrator and players with an assigned Hero.
 
 1. Choose **Detailed** or **Quick**, then **Start Group Action** and select participants. Players can include themselves.
-2. Each participating Hero offers one tag. The Narrator reviews the offers, may approve one burn for 3 Power, and may add weaknesses. Relationships and single-use tags cannot be burned.
+2. Each participating Hero offers one tag. The Narrator reviews the offers, may approve one power-tag or Backpack-item burn for 3 Power, and may add weaknesses. Rotes, floating story tags, relationships, and single-use tags cannot be burned.
 3. The Narrator reviews the contributions and modifier, and may invoke any relevant Fellowship theme power tags in addition to the Heroes’ contributions. No Hero leads or owns the group action.
 4. **Roll for Group** opens the normal roll dialog with the approved contributions. Detailed actions retain Trade Power, the native spending tracker, and Push Your Luck. The group result identifies participants and states that its outcome affects everyone.
 
@@ -335,11 +335,11 @@ This integration targets Mist Engine 14.5.4 and preserves the module's existing 
 
 Add a **Quintessence** Item named **Diligent Drudge** to a character. Matching ignores case and repeated/surrounding whitespace. Each personal theme's Improve track displays five boxes. Existing Improve marks are retained; adding the Quintessence does not reset progress.
 
-The fifth mark resets that theme's Improve track to zero and banks **two improvements on that theme** in the same document update. Its **Improve Theme (2 available)** button opens the existing improvement workflow. Confirming one choice spends one earned improvement; the other remains available until used. Cancelling or closing a choice does not spend it. Earned improvements persist across reloads and removing the Quintessence. New Improve marks accumulated after the reset are preserved when spending banked improvements. Further completed tracks add two more credits.
+At five marks, the track stays full and **Improve Theme (2 available)** becomes available. Confirming the first improvement leaves the track full with one choice remaining; confirming the second clears it. Canceling or closing a choice does not spend it. While the track is full, clicking it does not start another cycle or bank more improvements. Partly completed choices persist across reloads.
 
 Left-click marks Improve; the existing right-click action removes a mark from the current track. Weakness/inverted-power awards and Helping/Group Action bookkeeping also support marks four and five, with the existing once-per-theme rules. Shared Fellowship themecards and Story themes retain their existing rules. Ordinary characters keep the standard three-box workflow.
 
-Diligent Drudge also applies to personal nascent themes: their usual one-mark Develop Theme action is replaced by the five-mark/two-improvement workflow while the Quintessence is owned. A nascent theme still matures when it gains its third active power tag. Removing the Quintessence restores the usual track/development rules without deleting earned credits or current progress.
+Diligent Drudge also applies to personal nascent themes: their usual one-mark Develop Theme action is replaced by the five-mark/two-improvement workflow while the Quintessence is owned. A nascent theme still matures when it gains its third active power tag. Removing the Quintessence restores the usual track/development rules without deleting previously earned credits or current progress.
 
 
 ## Quintessence automation: Fumbling Master
@@ -348,7 +348,7 @@ Add a **Quintessence** Item named **Fumbling Master** to the Hero. When one of t
 
 Selecting the option replaces that weakness's contribution with **−2 Power total**, rather than applying an additional −2. For an ordinary hindering weakness, this adds one extra point of penalty beyond its normal −1. The Power preview, roll formula, Detailed spend budget, Trade Power eligibility, and native GM approval all include the adjustment. If a weakness has been inverted to help, choosing Fumbling Master replaces its +1 with −2. Choose at most one weakness per theme per roll, preserving the system's once-per-theme Improve rule. Separate themes can each use the option.
 
-The selected weakness's owning theme earns **2 Improve instead of 1**. The module suppresses its normal cleanup mark and applies both marks through the existing saved roll receipt, including Helping and Group Actions. Retrying cleanup does not duplicate the award. With Diligent Drudge, a roll starting at 4 Improve completes the five-box track, banks its two improvements, and leaves the second Fumbling Master mark on the new track. On ordinary three-box tracks, any excess mark is saved and restored after the existing Improve Theme workflow is completed; its button tooltip identifies saved marks.
+The selected weakness's owning theme earns **2 Improve instead of 1**. The module suppresses its normal cleanup mark and applies both marks through the existing saved roll receipt, including Helping and Group Actions. Retrying cleanup does not duplicate the award. With Diligent Drudge, a roll starting at 4 Improve fills the five-box track and saves the excess mark. The full track remains visible until both improvement choices are used, then the saved mark carries into the next track. On ordinary three-box tracks, any excess mark is saved and restored after the existing Improve Theme workflow is completed; its button tooltip identifies saved marks.
 
 The choice applies only to the current roll. Closing/cancelling grants no marks, and choices clear after execution or when switching characters/roll types. During native GM approval the choices are locked; removing or changing the qualifying weakness/Quintessence before execution invalidates the saved choice. A short note on the resulting card records Fumbling Master's use.
 
