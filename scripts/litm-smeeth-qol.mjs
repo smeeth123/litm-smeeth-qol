@@ -457,6 +457,12 @@ async function promptWeaknessImprovement(theme) {
 
 async function promptSpecialImprovement(theme) {
   const improvements = specialImprovementSlots(theme);
+  const descriptions = await Promise.all(improvements.slice(0, 5).map(async improvement => {
+    const description = String(improvement?.description ?? "").trim();
+    return description ? foundry.applications.ux.TextEditor.implementation.enrichHTML(description, {
+      secrets: Boolean(theme.isOwner ?? theme.parent?.isOwner), relativeTo: theme.uuid ? theme : theme.parent
+    }) : "<p>No description provided.</p>";
+  }));
   const availableOptions = improvements
     .slice(0, 5)
     .map((improvement, index) => ({ improvement, index }))
@@ -476,6 +482,9 @@ async function promptSpecialImprovement(theme) {
           <span>Gain an available Special Improvement</span>
         </label>
         <select name="specialIndex" ${availableOptions ? "" : "disabled"}>${availableOptions || "<option>No inactive Special Improvements are available</option>"}</select>
+        <section class="litm-qol-special-preview" aria-label="Special Improvement description"${defaultMode === "activate" ? "" : " hidden"}>
+          <div class="litm-qol-special-description"></div>
+        </section>
         <label class="litm-qol-improve-detail-choice${canCreate ? "" : " disabled"}">
           <input type="checkbox" name="specialMode" value="create" ${defaultMode === "create" ? "checked" : ""} ${canCreate ? "" : "disabled"}>
           <span>Create a new Special Improvement</span>
@@ -483,12 +492,23 @@ async function promptSpecialImprovement(theme) {
         <input type="text" name="specialName" autocomplete="off" placeholder="Special Improvement title" ${defaultMode === "create" ? "" : "disabled"}>
         <textarea name="specialDescription" rows="5" placeholder="Description" ${defaultMode === "create" ? "" : "disabled"}></textarea>
       </div>`,
-    render: (_event, dialog) => bindExclusiveCheckboxes(dialog, "specialMode", (selected, root) => {
-      root.querySelector('[name="specialIndex"]').disabled = selected?.value !== "activate" || !availableOptions;
-      root.querySelector('[name="specialName"]').disabled = selected?.value !== "create";
-      root.querySelector('[name="specialDescription"]').disabled = selected?.value !== "create";
-      setImproveButtonDisabled(root, "continue", !selected);
-    }),
+    render: (_event, dialog) => {
+      const root = dialog.element;
+      const selector = root.querySelector('[name="specialIndex"]');
+      const preview = root.querySelector(".litm-qol-special-preview");
+      const updatePreview = () => {
+        preview.hidden = selectedCheckbox(root, "specialMode")?.value !== "activate" || !availableOptions;
+        preview.querySelector(".litm-qol-special-description").innerHTML = descriptions[Number(selector.value)] ?? "";
+      };
+      selector.addEventListener("change", updatePreview);
+      bindExclusiveCheckboxes(dialog, "specialMode", (selected, root) => {
+        selector.disabled = selected?.value !== "activate" || !availableOptions;
+        root.querySelector('[name="specialName"]').disabled = selected?.value !== "create";
+        root.querySelector('[name="specialDescription"]').disabled = selected?.value !== "create";
+        updatePreview();
+        setImproveButtonDisabled(root, "continue", !selected);
+      });
+    },
     buttons: [
       improveCancelButton(),
       improveBackButton(),
