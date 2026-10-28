@@ -891,12 +891,6 @@ Hooks.once("ready", async () => {
   }
 });
 
-// Register before the initial canvas controls are built.
-Hooks.on("getSceneControlButtons", controls => {
-    const tool = controls["mist-engine"]?.tools?.group_action_app;
-    if (tool) tool.visible = game.user.isGM || Boolean(getPlayerCharacter(game.user));
-  });
-
 // Fellowship theme powers are shared resources, not a Hero's one contribution.
 export function getFellowshipPowerTags(actorIds) {
   const cards = new Map();
