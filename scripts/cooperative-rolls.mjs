@@ -831,7 +831,7 @@ export function installCooperativeRolls(Collaboration, DiceRollApp, GroupActionA
   Hooks.on("renderApplicationV2", (app, root) => {
     if (!(app instanceof DiceRollApp) || !app._litmQolGroupRoll || root.querySelector(".litm-qol-group-roll-note")) return;
     const note = document.createElement("p"); note.className = "litm-qol-group-roll-note";
-    note.textContent = `Acting Together. The outcome affects the entire group. When creating a single-use tag with group Power, choose which Hero receives it.`;
+    note.textContent = `Acting Together. The outcome affects the entire group. When creating a single-use tag with group Power, choose a receiving character in the scene or the scene itself.`;
     const selectedLabel = root.querySelector(".selected-tags-container > .resource-label");
     if (selectedLabel) selectedLabel.textContent = "Group contributions:";
     root.querySelector("form")?.prepend(note);

@@ -83,7 +83,7 @@ async function chooseFulfillmentPath(actor) {
     content: `<div class="litm-qol-moment-dialog"><p>Choose how this Promise will be fulfilled. See Core Book Vol. I, pages 193–195.</p>${queued ? `<p><strong>${queued} additional Promise</strong> ${queued === 1 ? "is" : "are"} waiting and will be applied only after a completed Moment of Fulfillment.</p>` : ""}<div class="litm-qol-moment-choice-list">${rows}</div></div>`,
     render: (_event, dialog) => bindExclusive(dialog.element),
     buttons: [
-      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => null },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => false },
       { action: "next", label: "Next", icon: "fa-solid fa-arrow-right", class: "litm-qol-improve-primary", default: true, callback: (_event, button) => button.form.querySelector('[name="fulfillmentPath"]:checked')?.value ?? null }
     ],
     rejectClose: false
@@ -98,7 +98,7 @@ async function confirmSimplePath(path) {
     classes: ["litm-qol-system-dialog", "litm-qol-moment-window"],
     content: `<div class="litm-qol-moment-dialog litm-qol-moment-explanation"><h3>${details.title}</h3>${details.paragraphs.map(paragraph => `<p>${paragraph}</p>`).join("")}<p><strong>Confirming completes this Moment of Fulfillment and spends 5 Promise.</strong></p></div>`,
     buttons: [
-      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => null },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => false },
       { action: "back", label: "Back", icon: "fa-solid fa-arrow-left", class: "litm-qol-moment-footer-button", callback: () => "back" },
       { action: "confirm", label: "Confirm", icon: "fa-solid fa-check", class: "litm-qol-improve-primary", default: true, callback: () => "confirm" }
     ],
@@ -153,7 +153,7 @@ async function confirmReforged(actor, benefits) {
       <p><strong>No changes occur until all four new themes are ready and you confirm the Hero Creator.</strong></p>
     </div>`,
     buttons: [
-      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => null },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => false },
       { action: "back", label: "Back", icon: "fa-solid fa-arrow-left", class: "litm-qol-moment-footer-button", callback: () => "back" },
       { action: "continue", label: "Create New Hero", icon: "fa-solid fa-wand-magic-sparkles", class: "litm-qol-improve-primary", default: true, callback: () => "confirm" }
     ],
@@ -201,7 +201,7 @@ async function chooseRetirementDetails(actor) {
       update();
     },
     buttons: [
-      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => null },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => false },
       { action: "back", label: "Back", icon: "fa-solid fa-arrow-left", class: "litm-qol-moment-footer-button", callback: () => ({ navigation: "back" }) },
       { action: "confirm", label: "Retire Hero", icon: "fa-solid fa-house", class: "litm-qol-improve-primary", default: true, callback: (_event, button) => ({
         place: button.form.elements.retirementPlace.value.trim(),
@@ -242,7 +242,16 @@ function retirementNotes(existingNotes, details) {
   return existing.trim() ? `${existing}\n${entry}` : entry;
 }
 
+function validRetirementDetails(details) {
+  return Boolean(details && typeof details === "object"
+    && typeof details.place === "string" && details.place.trim()
+    && typeof details.life === "string" && details.life.trim()
+    && ["tag", "period"].includes(details.benefit)
+    && (details.benefit !== "tag" || (typeof details.tag === "string" && details.tag.trim())));
+}
+
 async function completeRetirement(actor, details) {
+  if (!validRetirementDetails(details)) throw new Error("Confirm valid retirement details before retiring this Hero.");
   const previous = actor.getFlag(MODULE_ID, RETIREMENT_FLAG);
   const previousEditMode = actor.system.editMode;
   const previousNotes = String(actor.system.notes ?? "");
@@ -379,7 +388,7 @@ async function chooseQuintessence(saved = {}) {
       update();
     },
     buttons: [
-      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => null },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => false },
       { action: "back", label: "Back", icon: "fa-solid fa-arrow-left", class: "litm-qol-moment-footer-button", callback: () => ({ navigation: "back" }) },
       { action: "next", label: "Next", icon: "fa-solid fa-arrow-right", class: "litm-qol-improve-primary", default: true, callback: (_event, button) => {
         const selected = button.form.querySelector('[name="quintessenceChoice"]:checked')?.value;
@@ -417,7 +426,7 @@ async function confirmQuintessence(choice) {
     classes: ["litm-qol-system-dialog", "litm-qol-moment-window"],
     content: `<div class="litm-qol-moment-dialog litm-qol-moment-explanation"><h3>Gain a Quintessence</h3><p>You will gain <strong>${foundry.utils.escapeHTML(data.name)}</strong>.</p>${description ? `<div class="litm-qol-quintessence-description">${description}</div>` : ""}<p><strong>Confirming completes this Moment of Fulfillment and spends 5 Promise.</strong></p></div>`,
     buttons: [
-      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => null },
+      { action: "cancel", label: "Cancel", icon: "fa-solid fa-xmark", class: "litm-qol-moment-footer-button", callback: () => false },
       { action: "back", label: "Back", icon: "fa-solid fa-arrow-left", class: "litm-qol-moment-footer-button", callback: () => "back" },
       { action: "confirm", label: "Confirm", icon: "fa-solid fa-check", class: "litm-qol-improve-primary", default: true, callback: () => ({ confirmed: true, data }) }
     ],
@@ -447,7 +456,7 @@ async function beginMomentOfFulfillment(actor) {
       const benefits = reforgeBenefits(actor);
       const retirement = await chooseRetirementDetails(actor);
       if (retirement?.navigation === "back") continue;
-      if (!retirement) return;
+      if (!validRetirementDetails(retirement)) return;
       if (Number(actor.system?.promises ?? 0) < 5) {
         ui.notifications.warn("This Hero no longer has enough Promise for a Moment of Fulfillment.");
         return;

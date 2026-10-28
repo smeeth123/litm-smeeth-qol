@@ -38,6 +38,8 @@ In **Hero Creator**, choose **Start with a Trope** to browse visible Trope Items
 
 ### Single-Use Story Tags
 
+Single-use tags can be added to the scene or to a Hero or Challenge with a token in it. This applies to single-use tags created during a group roll as well.
+
 On a successful Detailed roll, use the native **Single-Use** spending button when exactly 1 Power remains. Enter a tag name to create the tag and spend that Power together. Canceling does neither.
 
 Tags appear in the Hero’s Tags and Statuses section with a single-use label. They cannot be burned and are removed only after a completed roll actually invokes them, including approved module Help/Group contributions. Ordinary chat, canceled rolls, and rejected approval do not consume them. Tags carry stable IDs, so duplicate names, renaming, and array reordering cannot redirect cleanup.

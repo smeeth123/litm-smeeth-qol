@@ -24,9 +24,27 @@ const authorId = message => message.author?.id ?? message.user?.id;
 const wasInvoked = (actorUuid, id) => [...game.messages].some(message =>
   message.getFlag(MODULE_ID, "rollContext")?.singleUse?.some(use => use.actorUuid === actorUuid && use.id === id));
 
+// Token actors include synthetic actors used by unlinked NPC/Challenge tokens.
+export function sceneTagRecipients(scene, user = game.user) {
+  const actors = new Map();
+  for (const token of scene?.tokens?.contents ?? []) {
+    const actor = token.actor;
+    if (!actor || (!user.isGM && token.hidden) || !["character", "litm-character", "litm-npc"].includes(actor.type)
+        || !Array.isArray(actor.system.floatingTagsAndStatuses)) continue;
+    actors.set(actor.uuid, actor);
+  }
+  return [...actors.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function rollScene(message) {
+  const id = message.getFlag(MODULE_ID, "rollContext")?.sceneId ?? message.speaker.scene
+    ?? globalThis.canvas?.scene?.id ?? game.scenes?.active?.id;
+  return game.scenes?.get(id);
+}
+
 export function extendSingleUseSchema() {
   if (game.system.id !== SYSTEM_ID) return;
-  for (const Model of new Set([CONFIG.Actor.dataModels.character, CONFIG.Actor.dataModels["litm-character"]].filter(Boolean))) {
+  for (const Model of new Set([...Object.values(CONFIG.Actor.dataModels), CONFIG.Item?.dataModels?.["scene-data"]].filter(Boolean))) {
     const entry = Model.schema.fields.floatingTagsAndStatuses?.element;
     if (entry && !entry.fields[TAG_ID]) {
       entry.extendFields({ [TAG_ID]: new foundry.data.fields.StringField({ required: false, blank: true, initial: "" }) });
@@ -80,6 +98,7 @@ export function recordForTag(actor, index) {
 export function decorateSingleUseTags(actor, root) {
   if (!actor || !root) return;
   for (const entry of root.querySelectorAll(".floating-tag-and-status-entry[data-index]")) {
+    if (actor.documentName === "Item" && entry.dataset.actorId) continue;
     const record = recordForTag(actor, Number(entry.dataset.index));
     if (!record) continue;
     entry.classList.add("litm-qol-single-use-floating-tag");
@@ -116,9 +135,13 @@ async function applySpend(payload, user) {
   const state = clone(message.getFlag(SYSTEM_ID, "detailedSpend"));
   if (!state || state.consequenceResult < 0) throw new Error("Only successful Detailed rolls can spend Power.");
   state.entries ??= [];
-  const group = message.getFlag(MODULE_ID, "rollContext")?.group;
-  let actor = group ? game.actors.get(payload.recipientActorId) : ChatMessage.getSpeakerActor(message.speaker);
-  const canAllocateTag = target => target && (owner(target, user) || (game.user.isGM && authorId(message) === user?.id && group?.actorIds?.includes(target.id)));
+  let actor = ChatMessage.getSpeakerActor(message.speaker);
+  // The author can direct their effect to another visible character through
+  // the GM. Ownership is still required when no GM is available to write it.
+  const canAllocateTag = target => target && (owner(target, user) || (game.user.isGM
+    && authorId(message) === user?.id && (target.type === "scene-data"
+      || target.testUserPermission(user, "LIMITED")
+      || sceneTagRecipients(rollScene(message), user).some(actor => actor.uuid === target.uuid))));
   let createdId;
   let removed;
   if (payload.action === "pushLuck") {
@@ -140,7 +163,7 @@ async function applySpend(payload, user) {
     if (!entry) throw new Error("This spending entry changed. Refresh the card and try again.");
     if (entry.qolSingleUseId) {
       actor = entry.actorUuid ? await fromUuid(entry.actorUuid) : actor;
-      if (!canAllocateTag(actor)) throw new Error("You cannot remove this Hero's tag.");
+      if (!canAllocateTag(actor) && !(actor && game.user.isGM && authorId(message) === user?.id)) throw new Error("You cannot remove this destination’s tag.");
       const record = allRecords(actor).find(record => record.id === entry.qolSingleUseId);
       if (record?.state === "consumed" || wasInvoked(actor.uuid, entry.qolSingleUseId)) throw new Error("This tag has already been used; its Power cannot be refunded.");
       removed = { tag: clone(actor.system.floatingTagsAndStatuses.find(tag => tag[TAG_ID] === entry.qolSingleUseId)), record: clone(record) };
@@ -155,10 +178,30 @@ async function applySpend(payload, user) {
     if (!option || option.cost > remainingPower(state)) throw new Error("There is not enough Power remaining.");
     if (option.id === "singleUse") {
       if (remainingPower(state) !== 1) throw new Error("Create a single-use tag only when exactly 1 Power remains.");
-      if (group && !group.actorIds.includes(actor?.id)) throw new Error("Choose a participating Hero to receive the group’s tag.");
-      if (!canAllocateTag(actor)) throw new Error("You cannot add a tag to this Hero.");
       const name = String(payload.name ?? "").trim();
       if (!name || name.length > 200) throw new Error("Enter a tag name of 1–200 characters.");
+      const scene = rollScene(message);
+      if (!scene) throw new Error("The roll’s scene is no longer available.");
+      if (payload.sceneId) {
+        if (payload.sceneId !== scene.id) throw new Error("Choose the roll’s scene as the destination.");
+        actor = game.items.find(item => item.type === "scene-data" && item.system.sceneKey === scene.id);
+        if (!actor) {
+          if (!game.user.isGM) throw new Error("An active Narrator is required to add a scene tag.");
+          actor = await Item.create({ name: `Scene Data: ${scene.name}`, type: "scene-data",
+            system: { sceneKey: scene.id }, flags: { mistmod: { hidden: true } } });
+        }
+      } else {
+        const recipients = sceneTagRecipients(scene, user);
+        const matches = recipients.filter(candidate => payload.recipientActorUuid
+          ? candidate.uuid === payload.recipientActorUuid : candidate.id === (payload.recipientActorId ?? actor?.id));
+        if (matches.length !== 1) throw new Error("Choose a Hero, NPC, or Challenge in this scene.");
+        actor = matches[0];
+      }
+      if (!actor || !Array.isArray(actor.system.floatingTagsAndStatuses)
+          || (actor.type !== "scene-data" && !["character", "litm-character", "litm-npc"].includes(actor.type))) {
+        throw new Error("Choose a character or the scene to receive the tag.");
+      }
+      if (!canAllocateTag(actor)) throw new Error("An active Narrator or ownership of the destination is required to add this tag.");
       createdId = foundry.utils.randomID();
       const records = allRecords(actor);
       records.push({ id: createdId, name, schemaVersion: 2, state: "available", sourceMessage: message.uuid });
@@ -167,7 +210,7 @@ async function applySpend(payload, user) {
         selected: false, positive: true, markings: Array(6).fill(false), might: 0, mightIcon: "adventure" });
       await actor.update({ "system.floatingTagsAndStatuses": tags, ...recordUpdates(records) });
       state.entries.push({ id: foundry.utils.randomID(), type: "singleUse", cost: 1,
-        label: `Single-use tag: ${name}${group ? ` (${actor.name})` : ""}`, qolSingleUseId: createdId, actorUuid: actor.uuid });
+        label: `Single-use tag: ${name} (${actor.type === "scene-data" ? game.scenes.get(actor.system.sceneKey)?.name ?? "Scene" : actor.name})`, qolSingleUseId: createdId, actorUuid: actor.uuid });
     } else if (option.kind === "status") {
       const last = state.entries.at(-1);
       if (last?.type === "status") { last.tier += 1; last.cost += 1; last.label = game.i18n.format("MIST_ENGINE.DETAILED_SPEND.StatusEntry", { tier: last.tier }); }
@@ -250,7 +293,7 @@ export function bindSpending(message, root) {
   }
   for (const undo of root.querySelectorAll("[data-spend-undo]")) {
     const entry = state.entries?.[Number(undo.dataset.spendUndo)];
-    const actor = entry?.qolSingleUseId ? [...game.actors.values()].find(actor => actor.uuid === entry.actorUuid) ?? ChatMessage.getSpeakerActor(message.speaker) : null;
+    const actor = entry?.qolSingleUseId ? [...game.actors.values(), ...(game.items?.values() ?? [])].find(actor => actor.uuid === entry.actorUuid) ?? ChatMessage.getSpeakerActor(message.speaker) : null;
     if (actor && allRecords(actor).find(record => record.id === entry.qolSingleUseId)?.state === "consumed") {
       undo.classList.add("litm-qol-undo-unavailable");
       undo.setAttribute("aria-disabled", "true");
@@ -278,18 +321,22 @@ export function bindSpending(message, root) {
         payload = { ...payload, action: "spend", optionId: button.dataset.spendOption };
         if (payload.optionId === "singleUse") {
           let result;
-          const group = message.getFlag(MODULE_ID, "rollContext")?.group;
-          const recipients = (group?.actorIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
-          const recipientField = group ? `<label>Hero receiving the tag<select name="recipientActorId">${recipients.map(actor => `<option value="${actor.id}">${foundry.utils.escapeHTML(actor.name)}</option>`).join("")}</select></label>` : "";
+          const scene = rollScene(message);
+          const recipients = sceneTagRecipients(scene).filter(actor => owner(actor, game.user) || game.users.activeGM);
+          const defaultActor = ChatMessage.getSpeakerActor(message.speaker);
+          const recipientField = `<label>Add tag to<select name="destination">${recipients.map(actor => `<option value="actor:${actor.uuid}"${actor.uuid === defaultActor?.uuid ? " selected" : ""}>${foundry.utils.escapeHTML(actor.name)}${actor.isToken ? ` (${foundry.utils.escapeHTML(actor.token?.name ?? "token")})` : ""}</option>`).join("")}${scene ? `<option value="scene:${scene.id}">Scene: ${foundry.utils.escapeHTML(scene.name)}</option>` : ""}</select></label>`;
+          if (!recipients.length && !scene) throw new Error("No character or scene is available to receive the tag.");
           try { result = await foundry.applications.api.DialogV2.prompt({
             window: { title: "Create Single-Use Story Tag" }, classes: ["litm-qol-system-dialog"],
-            content: `<p>Spend your final 1 Power to create a story tag. It is removed after use and cannot be burned.</p><label>Tag name<input type="text" name="tagName" maxlength="200" autofocus></label>${recipientField}`,
-            ok: { label: "Create and Spend 1 Power", callback: (_event, button) => group ? { name: button.form.elements.tagName.value, recipientActorId: button.form.elements.recipientActorId.value } : button.form.elements.tagName.value }, rejectClose: false
+            content: `<p>Spend your final 1 Power to create a story tag on this scene or a Hero, NPC, or Challenge in it. It is removed after its first use and cannot be burned.</p><label>Tag name<input type="text" name="tagName" maxlength="200" autofocus></label>${recipientField}`,
+            ok: { label: "Create and Spend 1 Power", callback: (_event, button) => ({ name: button.form.elements.tagName.value, destination: button.form.elements.destination.value }) }, rejectClose: false
           }); } catch { return; }
-          const name = group ? result?.name : result;
-          if (!String(name ?? "").trim()) return;
-          payload.name = name;
-          if (group) payload.recipientActorId = result.recipientActorId;
+          if (!String(result?.name ?? "").trim() || !result.destination) return;
+          payload.name = result.name;
+          const [kind, id] = result.destination.split(":");
+          if (kind === "scene") payload.sceneId = id;
+          else if (kind === "actor") payload.recipientActorUuid = id;
+          else return;
         }
       } else {
         const index = Number(button.dataset.spendUndo);
@@ -324,6 +371,29 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
       return !id || Boolean(tag.singleUseId);
     });
   };
+  for (const [method, field] of [["prepareSceneAndStoryTags", "selectedStoryTags"], ["prepareChallengeTags", "challengeTags"]]) {
+    const original = proto[method];
+    if (!original) continue;
+    proto[method] = function(...args) {
+      const result = original.apply(this, args);
+      const matched = new Set();
+      this[field] = (this[field] ?? []).filter(tag => {
+        const candidates = tag.source === "npc" ? sceneTagRecipients(game.scenes?.get(globalThis.canvas?.scene?.id ?? game.scenes?.active?.id))
+          .filter(actor => actor.id === tag.actorId && actor.system.floatingTagsAndStatuses?.[tag.index]?.selected
+            && actor.system.floatingTagsAndStatuses[tag.index].name === tag.name) : [];
+        const npc = candidates.find(actor => !matched.has(`${actor.uuid}:${tag.index}`));
+        if (npc) { matched.add(`${npc.uuid}:${tag.index}`); tag.singleUseSourceUuid = npc.uuid; }
+        const doc = tag.source === "scene-and-story" ? game.items.get(tag.sceneDataItemId)
+          : tag.source === "npc" ? npc ?? game.actors.get(tag.actorId) : null;
+        const id = doc?.system.floatingTagsAndStatuses?.[tag.index]?.[TAG_ID];
+        if (!id) return true;
+        if (!getSingleUseRecords(doc).some(record => record.id === id)) return false;
+        tag.singleUseId = id; tag.singleUseSourceUuid = doc.uuid; tag.toBurn = false;
+        return true;
+      });
+      return result;
+    };
+  }
   const originalReset = proto.resetTags;
   proto.resetTags = function(...args) {
     const promise = this._litmQolGroupRoll ? Promise.resolve() : Promise.resolve(originalReset.apply(this, args));
@@ -350,8 +420,13 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
     const applied = DiceRollApp.applyRulesToSelectedTags(this.selectedTags, this.selectedGmTags, this.selectedStoryTags, this.challengeTags);
     const uses = new Map();
     for (const tag of applied) {
-      const id = tag.singleUseId ?? (tag.source === "floating-tag" ? this.actor.system.floatingTagsAndStatuses[tag.index - 1]?.[TAG_ID] : null);
-      const use = id ? { actorUuid: this.actor.uuid, id } : tag.helperTagSingleUse && tag.helperSingleUseRecordId
+      const source = tag.singleUseSourceUuid ? await fromUuid(tag.singleUseSourceUuid)
+        : tag.source === "scene-and-story" ? game.items.get(tag.sceneDataItemId)
+        : tag.source === "npc" ? game.actors.get(tag.actorId) : this.actor;
+      const sourceIndex = tag.source === "floating-tag" ? tag.index - 1 : tag.index;
+      const id = tag.singleUseId ?? (["floating-tag", "scene-and-story", "npc"].includes(tag.source)
+        ? source?.system.floatingTagsAndStatuses?.[sourceIndex]?.[TAG_ID] : null);
+      const use = id ? { actorUuid: tag.singleUseSourceUuid ?? source?.uuid, id } : tag.helperTagSingleUse && tag.helperSingleUseRecordId
         ? { actorUuid: game.actors.get(tag.helperActorId)?.uuid, id: tag.helperSingleUseRecordId } : null;
       if (use?.actorUuid) uses.set(`${use.actorUuid}:${use.id}`, use);
       if (use) tag.toBurn = false;
@@ -359,7 +434,7 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
     for (const use of uses.values()) {
       const actor = use.actorUuid === this.actor.uuid ? this.actor : await fromUuid(use.actorUuid);
       const record = actor && getSingleUseRecords(actor).find(record => record.id === use.id);
-      if (!record || wasInvoked(use.actorUuid, use.id)) {
+      if (!record || !actor.system.floatingTagsAndStatuses.some(tag => tag[TAG_ID] === use.id) || wasInvoked(use.actorUuid, use.id)) {
         ui.notifications.warn("A selected single-use tag has already been used. Refresh the selection before rolling again.");
         return;
       }
@@ -368,7 +443,8 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
     try { help = captureHelpBookkeeping(this, applied, values); }
     catch (error) { ui.notifications.warn(error.message); return; }
     let finish;
-    const context = { data: { id: foundry.utils.randomID(), rollType: this.rollType, actorId: this.actor.id, singleUse: [...uses.values()], help, group: clone(this._litmQolGroupRoll ?? null) },
+    const context = { data: { id: foundry.utils.randomID(), rollType: this.rollType, actorId: this.actor.id,
+      sceneId: game.items.get(this.selectedStoryTags?.[0]?.sceneDataItemId)?.system.sceneKey ?? globalThis.canvas?.scene?.id ?? game.scenes?.active?.id ?? null, singleUse: [...uses.values()], help, group: clone(this._litmQolGroupRoll ?? null) },
       done: new Promise(resolve => { finish = resolve; }) };
     this._litmQolRollContext = context;
     executions.set(context.data.id, context);
@@ -422,9 +498,16 @@ Hooks.on("renderChatMessageHTML", (message, root) => {
     button.addEventListener("click", () => consumeForMessage(message)); root.append(button);
   }
 });
-Hooks.on("preUpdateActor", (actor, changes) => {
+function protectSingleUseTags(actor, changes) {
   const tags = changes["system.floatingTagsAndStatuses"] ?? changes.system?.floatingTagsAndStatuses;
   if (Array.isArray(tags)) for (const tag of tags) if (tag[TAG_ID]) tag.toBurn = false;
+}
+Hooks.on("preUpdateActor", protectSingleUseTags);
+Hooks.on("preUpdateItem", protectSingleUseTags);
+Hooks.on("renderApplicationV2", (app, html) => {
+  if (!app.currentSceneDataItem) return;
+  const root = html instanceof HTMLElement ? html : html?.[0];
+  if (root) decorateSingleUseTags(app.currentSceneDataItem, root);
 });
 
 export function registerSingleUseSocket(api = socketlib) {

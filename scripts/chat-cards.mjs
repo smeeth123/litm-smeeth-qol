@@ -28,7 +28,7 @@ export function cleanResultCard(message, root) {
     let groupNote;
     if (context?.group) {
       groupNote = document.createElement("p"); groupNote.className = "litm-qol-group-outcome";
-      groupNote.textContent = `Acting Together. The outcome affects the entire group.`;
+      groupNote.textContent = `Acting Together. The outcome affects the entire group. Single-use tags can go to a character in the scene or the scene itself.`;
     }
     // Retain the actual dice outcome/Power; replace verbose historic content,
     // duplicate spending lists, and the old unbudgeted Create Tag button.
