@@ -473,8 +473,9 @@ async function promptSpecialImprovement(theme) {
   const canCreate = blankIndex >= 0;
   const defaultMode = availableOptions ? "activate" : canCreate ? "create" : "";
   const result = await foundry.applications.api.DialogV2.wait({
-    window: improveDialogWindow(improveDialogTitle(theme, "Special Improvement")),
-    classes: improveDialogClasses(),
+    window: { ...improveDialogWindow(improveDialogTitle(theme, "Special Improvement")), resizable: true },
+    position: { width: 600, height: 650 },
+    classes: [...improveDialogClasses(), "litm-qol-special-improvement-window"],
     content: `
       <div class="litm-qol-improve-theme-dialog">
         <label class="litm-qol-improve-detail-choice${availableOptions ? "" : " disabled"}">

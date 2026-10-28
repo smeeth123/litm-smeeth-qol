@@ -93,6 +93,10 @@
 
 .mist-engine .litm-qol-single-use-floating-tag .fts-selectable::after {
   content: "single-use";
+  display: inline-block;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
   margin-left: 0.45em;
   padding: 0.05em 0.3em;
   border: 1px solid currentColor;
@@ -1678,3 +1682,58 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
   font-size: 0.9rem;
 }
 .litm-qol-fumbling-choice span { overflow-wrap: anywhere; }
+
+/* Description length must not resize the Special Improvement chooser. */
+.litm-qol-special-improvement-window {
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+}
+
+.litm-qol-special-improvement-window .dialog-form {
+  height: 100%;
+}
+
+.litm-qol-special-improvement-window .litm-qol-improve-theme-dialog {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.litm-qol-special-improvement-window .litm-qol-improve-theme-dialog > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.litm-qol-special-improvement-window .litm-qol-special-preview {
+  height: 12rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  scrollbar-gutter: stable;
+}
+
+.litm-qol-special-improvement-window .litm-qol-special-preview img {
+  max-width: 100%;
+  height: auto;
+}
+
+.litm-qol-special-improvement-window .litm-qol-special-preview pre {
+  white-space: pre-wrap;
+}
+
+.litm-qol-special-improvement-window .litm-qol-special-preview table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Plain-text tooltip targets should advertise their hover explanation. */
+.litm-qol-single-use-floating-tag .fts-selectable[data-tooltip],
+.litm-qol-nascent-badge[data-tooltip],
+.litm-qol-diligent-track[data-tooltip],
+.litm-qol-push-luck-note[data-tooltip],
+.roll-card .dice-total[data-tooltip] {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  cursor: help;
+}
