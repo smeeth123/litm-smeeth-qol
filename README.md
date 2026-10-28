@@ -214,7 +214,7 @@ Shake the Foundations of Magic, Speak Words Eternal, and Unearth Lost Truths pro
 
 ## Cooperative Rolls
 
-Socketlib remains required. The module enhances the native **Request Help** and **Acting Together** entry points; its separate Ask for Help and Group Action buttons have been removed from roll dialogs.
+The module enhances the native **Request Help** and **Acting Together** features.
 
 ### Request Help
 
