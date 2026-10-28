@@ -341,7 +341,7 @@ export async function runHeroCreator({ reforgeActor = null, parityActor = null }
       }
       const flags = { [DRAFT_FLAG]: true };
       if (tropePlan) flags.heroCreatorTrope = { uuid: tropePlan.tropeUuid, name: tropePlan.tropeName, kitUuids: tropePlan.kits.map(kit => kit.uuid), backpackTag: tropePlan.backpackTag };
-      actor = await Actor.create({ name: reforgeActor?.name || "New Hero", type: "litm-character", ownership: { default: 0, [game.user.id]: 3 }, flags: { [MODULE_ID]: flags } });
+      actor = await Actor.create({ name: reforgeActor?.name || "New Hero", type: "litm-character", prototypeToken: { actorLink: true }, ownership: { default: 0, [game.user.id]: 3 }, flags: { [MODULE_ID]: flags } });
       if (!tropePlan) break;
       const built = await buildTropeThemes(actor, tropePlan);
       if (built === NAV_CANCEL) { await deleteDraftActor(actor); return; }

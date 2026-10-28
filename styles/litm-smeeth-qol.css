@@ -104,6 +104,24 @@
   vertical-align: middle;
 }
 
+/* Native parchment dialogs make unchecked controls transparent in 14.5.5. */
+#dice-roll-app > section.window-content,
+.gm-roll-confirm-dialog > section.window-content,
+.sacrifice-roll-dialog > section.window-content,
+#group-action-app > section.window-content {
+  & input:is([type="checkbox"], [type="radio"]) {
+    --checkbox-background-color: #724a32;
+    --checkbox-checked-color: #724a32;
+    --checkbox-checkmark-color: #f6eeea;
+    --checkbox-disabled-color: #a38d7e;
+
+    &:is(:disabled, [readonly]) {
+      --checkbox-background-color: var(--checkbox-disabled-color);
+      --checkbox-checked-color: var(--checkbox-disabled-color);
+    }
+  }
+}
+
 .mist-engine .roll-dialog-container fieldset.litm-qol-trade-power {
   margin: 0.85rem 0 0.4rem;
   padding: 0.65rem;
