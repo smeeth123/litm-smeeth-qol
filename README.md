@@ -52,7 +52,7 @@ Right-clicking a status adds a **Reduce Status** option. Entering a number shift
 
 ### Fellowship Tags
 
-Fellowship Themecard changes automatically refresh linked full and compact character sheets across connected clients, including after sheets are closed and reopened, ensuring they remain up-to-date.
+Keeps native Fellowship Themecard syncing working after character sheets are closed and reopened, and handles deletion of the linked Themecard.
 
 ### Roll Dialog Reset
 
