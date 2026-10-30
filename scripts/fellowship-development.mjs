@@ -1,3 +1,4 @@
+import { themeTitle } from "./theme-title.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const NASCENT_FLAG = "nascentTheme";
 const NAV_BACK = "back";
@@ -40,8 +41,7 @@ function escapeAttribute(value) {
 }
 
 function displayName(theme) {
-  const title = String((theme.system.powertags ?? []).find(visible)?.name ?? "").trim();
-  return title ? `${theme.name} – ${title}` : theme.name;
+  return themeTitle(theme);
 }
 
 function cleanTag(name) {
@@ -178,7 +178,7 @@ async function replaceFellowshipTheme(theme) {
       [`flags.${MODULE_ID}.${NASCENT_FLAG}`]: true
     });
     await sendReplacementSummary(theme, oldName);
-    ui.notifications.info(`${theme.name} is now a nascent Fellowship theme.`);
+    ui.notifications.info(`${themeTitle(theme)} is now a nascent Fellowship theme.`);
     return;
   }
 }
@@ -207,7 +207,7 @@ async function developFellowshipTheme(theme) {
     "system.improve": 0,
     [`flags.${MODULE_ID}.${NASCENT_FLAG}`]: !matured
   });
-  ui.notifications.info(matured ? `${theme.name} is no longer nascent.` : `${name} added to ${theme.name}.`);
+  ui.notifications.info(matured ? `${themeTitle(theme)} is no longer nascent.` : `${name} added to ${themeTitle(theme)}.`);
 }
 
 async function promptNewTitle(theme, saved) {
@@ -406,7 +406,7 @@ async function evolveFellowshipTheme(theme) {
         [`flags.${MODULE_ID}.${NASCENT_FLAG}`]: false
       });
       await sendEvolutionSummary(theme, oldName, state, trades, improvements);
-      ui.notifications.info(`${theme.name} evolved successfully.`);
+      ui.notifications.info(`${themeTitle(theme)} evolved successfully.`);
       return;
     }
   } catch (error) {

@@ -4,6 +4,8 @@ const pending = new Set();
 const normalize = name => String(name ?? "").normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
 const tracked = new Map([["lucky bastard", "Lucky Bastard"], ["virtuoso", "Virtuoso"]]);
 
+export const isTrackedUsageQuintessence = item => item?.type === "quintessence" && tracked.has(normalize(item.name));
+
 export function renderQuintessenceUsage(actor, root) {
   if (!["character", "litm-character"].includes(actor?.type) || !root) return;
   const items = [...actor.items].filter(item => item.type === "quintessence" && tracked.has(normalize(item.name)));
@@ -18,20 +20,17 @@ export function renderQuintessenceUsage(actor, root) {
     row.querySelector(".litm-qol-session-use")?.remove();
     const label = document.createElement("label");
     label.className = "litm-qol-session-use";
-    label.title = `${featureName}: mark after using it. Uncheck at the start of the next session.`;
     const box = document.createElement("input");
     box.type = "checkbox";
     box.setAttribute("aria-label", `${featureName} used this session`);
     const dot = document.createElement("span");
     dot.className = "litm-qol-session-use-dot";
     dot.setAttribute("aria-hidden", "true");
-    const text = document.createElement("span");
-    text.className = "litm-qol-session-use-text";
     const key = item.uuid ?? `${actor.id}:${item.id}`;
     const paint = () => {
       box.checked = item.getFlag(MODULE_ID, USED_FLAG) === true;
       box.disabled = pending.has(key) || !(game.user.isGM || actor.isOwner);
-      text.textContent = box.checked ? "Used" : "Available";
+      label.dataset.tooltip = `${featureName}: ${box.checked ? "Used" : "Unused"} this session. Click to toggle. Uncheck at the start of the next session.`;
     };
     paint();
     label.addEventListener("click", event => event.stopPropagation());
@@ -51,6 +50,6 @@ export function renderQuintessenceUsage(actor, root) {
         if (actor.sheet?.element && actor.sheet.element !== root) renderQuintessenceUsage(actor, actor.sheet.element);
       }
     });
-    label.append(box, dot, text); row.append(label);
+    label.append(box, dot); row.append(label);
   }
 }

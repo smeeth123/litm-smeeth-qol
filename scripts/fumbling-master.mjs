@@ -1,3 +1,4 @@
+import { themeTitle } from "./theme-title.mjs";
 import { hasQuintessence } from "./quintessence-automation.mjs";
 
 const MODULE_ID = "litm-smeeth-qol";
@@ -23,7 +24,7 @@ export function fumblingCandidates(app, DiceRollApp) {
     if (theme?.type !== "themebook" || theme.system.options?.isStoryTheme
         || !Number.isInteger(index) || !name || weakness?.name?.trim() !== name || weakness.planned) continue;
     const entry = { actorId: actor.id, itemId, index, name, source: "weakness",
-      actorName: actor.name, themeName: theme.name,
+      actorName: actor.name, themeName: themeTitle(theme),
       // Replace the weakness's effective contribution with -2. An inverted
       // weakness that currently gives +1 therefore needs a -3 adjustment.
       extraPenalty: tag.positive ? 3 : 1 };
@@ -100,7 +101,7 @@ export function renderFumblingMaster(app, root, DiceRollApp) {
     checkbox.name = "litmQolFumblingMaster"; checkbox.value = entry.key;
     checkbox.checked = chosen.has(entry.key); checkbox.disabled = locked;
     const text = document.createElement("span");
-    text.textContent = `${entry.name} — ${entry.actorName} / ${entry.themeName}`;
+    text.textContent = entry.name;
     checkbox.addEventListener("change", () => {
       for (const other of candidates) if (groupOf(other) === groupOf(entry)) app._litmQolFumblingMaster.delete(other.key);
       if (checkbox.checked) app._litmQolFumblingMaster.add(entry.key);

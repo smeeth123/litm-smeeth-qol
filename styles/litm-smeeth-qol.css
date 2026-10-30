@@ -1577,7 +1577,7 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
 .litm-qol-trope-picker-window .dialog-content { min-height: 0; flex: 1; overflow: hidden; }
 
 /* Match the session-use control to the sheet's small development dots. */
-.mist-engine .litm-quintessence .litm-qol-session-use {
+.mist-engine :is(.litm-quintessence, .item-special-improvement-line) .litm-qol-session-use {
   position: relative;
   display: inline-flex;
   flex: 0 0 auto;
@@ -1593,7 +1593,7 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
   white-space: nowrap;
   cursor: pointer;
 }
-.mist-engine .litm-quintessence .litm-qol-session-use input[type="checkbox"] {
+.mist-engine :is(.litm-quintessence, .item-special-improvement-line) .litm-qol-session-use input[type="checkbox"] {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1605,7 +1605,7 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
   padding: 0;
   margin: 0;
 }
-.mist-engine .litm-quintessence .litm-qol-session-use-dot {
+.mist-engine :is(.litm-quintessence, .item-special-improvement-line) .litm-qol-session-use-dot {
   display: inline-block;
   flex: 0 0 auto;
   box-sizing: border-box;
@@ -1615,14 +1615,14 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
   border-radius: 50%;
   background: #f6eeea;
 }
-.mist-engine .litm-quintessence .litm-qol-session-use input:checked + .litm-qol-session-use-dot {
+.mist-engine :is(.litm-quintessence, .item-special-improvement-line) .litm-qol-session-use input:checked + .litm-qol-session-use-dot {
   background: #724a32;
 }
-.mist-engine .litm-quintessence .litm-qol-session-use input:focus-visible + .litm-qol-session-use-dot {
+.mist-engine :is(.litm-quintessence, .item-special-improvement-line) .litm-qol-session-use input:focus-visible + .litm-qol-session-use-dot {
   outline: 2px solid #724a32;
   outline-offset: 3px;
 }
-.mist-engine .litm-quintessence .litm-qol-session-use input:disabled + .litm-qol-session-use-dot {
+.mist-engine :is(.litm-quintessence, .item-special-improvement-line) .litm-qol-session-use input:disabled + .litm-qol-session-use-dot {
   opacity: 0.5;
 }
 /* Keep five Improve marks together on narrow theme cards. */
@@ -1671,7 +1671,7 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
 }
 .mist-engine .litm-qol-improve-count { font-size: 0.85em; }
 
-.litm-qol-fumbling-master { margin: 0.6rem 0; }
+.litm-qol-fumbling-master, .litm-qol-rehearsed-technique, .litm-qol-trait { margin: 0.6rem 0; }
 .litm-qol-fumbling-master p { margin: 0.25rem 0 0.5rem; font-size: 0.85rem; }
 .litm-qol-fumbling-choice {
   display: grid;

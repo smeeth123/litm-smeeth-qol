@@ -1,9 +1,9 @@
 import { importSystemModule } from "./system-imports.mjs";
-/** Beyond Luck automation for Mist Engine 14.5.4 and later.
+/** Beyond Luck and Rehearsed Technique execution for Mist Engine 14.5.4 and later.
  * executeBeyondLuck adapts the system's executeRoll (MIT; see licenses/).
  * Installed beneath the existing Trade Power and single-use wrappers so their
  * approval, spending, contribution and consumption behavior is preserved.
- * Other actors delegate to the original method unchanged.
+ * Actors using neither feature delegate to the original method unchanged.
  */
 const PATCHED = Symbol.for("litm-smeeth-qol.quintessenceAutomation");
 
@@ -37,7 +37,8 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
 
         const dicePromises = [];
 
-        let rollFormula = `2d6`;
+        const rehearsed = this._litmQolRehearsedExecuting;
+        let rollFormula = rehearsed ? "7" : "2d6";
         if (numPositiveTags > 0) rollFormula += ` + ${numPositiveTags}`;
         if (numNegativeTags > 0) rollFormula += ` - ${numNegativeTags}`;
 
@@ -58,13 +59,14 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
         this.addShowDicePromise(dicePromises, diceRoll);
         await Promise.all(dicePromises);
 
-        let diceResults = [...diceRoll.terms[0].results].map(r => r.result);
+        let diceResults = rehearsed ? [] : [...diceRoll.terms[0].results].map(r => r.result);
 
         let isCritical = (diceResults[0] === 6 && diceResults[1] === 6);
         const doubleOnes = diceResults[0] === 1 && diceResults[1] === 1;
         const isFumble = doubleOnes && !hasBeyondLuck(this.actor);
 
         let diceRollHTML = await diceRoll.render();
+        if (rehearsed) diceRollHTML += '<p class="litm-qol-quintessence-note">Rehearsed Technique: dice treated as 7 before adding Power.</p>';
         if (doubleOnes && !isFumble) diceRollHTML += '<p class="litm-qol-quintessence-note">Beyond Luck: double ones resolve normally.</p>';
 
         let consequenceResult = -1;
@@ -126,7 +128,7 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
     }
 
   proto.executeRoll = function(values) {
-    return hasBeyondLuck(this.actor)
+    return (hasBeyondLuck(this.actor) || this._litmQolRehearsedExecuting)
       ? executeBeyondLuck.call(this, values)
       : original.call(this, values);
   };

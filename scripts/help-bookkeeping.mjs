@@ -1,3 +1,4 @@
+import { SPECIAL_USES } from "./circumstance-improvements.mjs";
 import { hasQuintessence } from "./quintessence-automation.mjs";
 import { FUMBLING_OVERFLOW } from "./fumbling-master.mjs";
 import { usesDiligentTrack } from "./diligent-drudge.mjs";
@@ -40,6 +41,7 @@ function sourceTag(actor, entry) {
   const item = actor.items.get(entry.itemId);
   if (entry.source === "themebook" && item?.type === "themebook") return item.system.powertags?.[entry.index];
   if (entry.source === "backpack" && item?.type === "backpack") return item.system.items?.[entry.index];
+  if (entry.source === "special" && item?.type === "themebook") return item.system.specialImprovements?.[entry.index];
   if (entry.source === "weakness" && item?.type === "themebook") return item.system.weaknesstags?.[entry.index];
   return null;
 }
@@ -122,16 +124,16 @@ export function captureHelpBookkeeping(app, applied, values = {}) {
   if (burns.length && applied.filter(tag => tag.toBurn).length > 1) {
     throw new Error("Only one tag may be burned in a Group Action. Clear the extra burn before rolling.");
   }
-  return { burns, weaknesses: [...weaknesses.values()], relationships, fellowshipTags: [...fellowshipTags.values()] };
+  return { burns, weaknesses: [...weaknesses.values()], relationships, fellowshipTags: [...fellowshipTags.values()], adversity: clone([...(values._litmQolAdversitySelections ?? []).filter(entry => entry.feature !== "vivid-memory"), ...(values._litmQolTraitSelections ?? [])]), vividMemory: clone((values._litmQolAdversitySelections ?? []).filter(entry => entry.feature === "vivid-memory")) };
 }
 
 // Run through the same serialized GM operation as single-use cleanup. Store
 // each receipt in the SAME document update as its effect, so a failed message
 // update or retry after reload cannot award Improve twice.
 export async function applyHelpBookkeeping(message, context) {
-  for (const [kind, entries] of [["burn", context.help?.burns ?? []], ["improve", context.help?.weaknesses ?? []], ["scratch", context.help?.relationships ?? []], ["scratchFellowship", context.help?.fellowshipTags ?? []]]) {
+  for (const [kind, entries] of [["adversity", context.help?.adversity ?? []], ["burn", context.help?.burns ?? []], ["improve", context.help?.weaknesses ?? []], ["scratch", context.help?.relationships ?? []], ["scratchFellowship", context.help?.fellowshipTags ?? []]]) {
     for (const entry of entries) {
-      const actor = game.actors.get(entry.actorId);
+      const actor = entry.actorUuid ? await fromUuid(entry.actorUuid) : game.actors.get(entry.actorId);
       if (!actor || !(game.user.isGM || actor.testUserPermission(game.user, "OWNER"))) {
         throw new Error("An active Narrator is required to update the contributing Hero.");
       }
@@ -144,7 +146,9 @@ export async function applyHelpBookkeeping(message, context) {
       // An already burned tag is safe to mark again; it may have been burned
       // by native cleanup if two players share the same character.
       requireSource(actor, entry);
-      if (kind === "scratch") {
+      if (kind === "adversity") {
+        change[`flags.${MODULE_ID}.${SPECIAL_USES}.${entry.feature ?? "strength-from-adversity"}`] = true;
+      } else if (kind === "scratch") {
         const fellowships = clone(actor.system.fellowships);
         Object.assign(fellowships[entry.index], { scratched: true, selected: false });
         change["system.fellowships"] = fellowships;
@@ -169,7 +173,7 @@ export async function applyHelpBookkeeping(message, context) {
       }
       ledger.push(receipt);
       change[`flags.${MODULE_ID}.${LEDGER}`] = ledger;
-      await doc.update(change);
+      await doc.update(change, kind === "burn" ? { litmQolBurnForPower: { rollId: context.id, index: entry.index, source: entry.source } } : {});
     }
   }
 }

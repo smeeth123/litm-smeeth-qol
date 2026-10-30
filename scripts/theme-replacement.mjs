@@ -1,3 +1,4 @@
+import { themeTitle } from "./theme-title.mjs";
 import { usesDiligentTrack } from "./diligent-drudge.mjs";
 import { chooseThemeDocument } from "./theme-browser.mjs";
 import { openQolThemekitSelector } from "./themekit-selector.mjs";
@@ -34,10 +35,7 @@ function visible(tag) {
 }
 
 function themeDisplayName(theme) {
-  const themeName = String(theme?.name ?? "Theme").trim() || "Theme";
-  const titleTag = (theme?.system?.powertags ?? []).find(tag => visible(tag));
-  const title = String(titleTag?.name ?? "").trim();
-  return title ? `${themeName} – ${title}` : themeName;
+  return themeTitle(theme);
 }
 
 function normalizedThemeType(value) {

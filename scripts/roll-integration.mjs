@@ -1,3 +1,7 @@
+import { installTraitImprovements, renderTraitImprovements, traitMight } from "./trait-improvements.mjs";
+import { installRehearsedTechnique, renderRehearsedTechnique } from "./skill-improvements.mjs";
+import { installPersonalityBurns } from "./personality-improvements.mjs";
+import { installAdversity, renderAdversity } from "./circumstance-improvements.mjs";
 import { finalizeFumblingMaster, fumblingPenalty, installFumblingMaster, renderFumblingMaster } from "./fumbling-master.mjs";
 import { installDiligentRolls } from "./diligent-drudge.mjs";
 import { importSystemModule } from "./system-imports.mjs";
@@ -23,14 +27,14 @@ export function rawPower(app, DiceRollApp, values = app) {
   const tags = DiceRollApp.applyRulesToSelectedTags(app.selectedTags, app.selectedGmTags,
     app.selectedStoryTags, app.challengeTags);
   const count = DiceRollApp.calculatePowerTags(tags);
-  const might = game.settings.get(SYSTEM_ID, "mightUsageEnabled") === true ? effectiveMight(app.actor, values.mightScale) : 0;
+  const might = game.settings.get(SYSTEM_ID, "mightUsageEnabled") === true ? traitMight(app, values.mightScale, values) : 0;
   return count.positive - count.negative + (app.helpingTags?.length ?? 0)
     + (Number(values.numModPositive) || 0) - (Number(values.numModNegative) || 0) + might
     - fumblingPenalty(app, DiceRollApp, values);
 }
 
 export function finalizeTrade(app, values, DiceRollApp) {
-  values = { ...values, mightScale: effectiveMight(app.actor, values.mightScale) };
+  values = { ...values, mightScale: traitMight(app, values.mightScale, values), _litmQolTraitMightApplied: true };
   values = finalizeFumblingMaster(app, values, DiceRollApp);
   if (!values) return null;
   // Native GM confirmation retains formValues until approval. Keeping the
@@ -160,6 +164,7 @@ export function installTradePower(DiceRollApp, spendOptions, renderDetailedCard,
   RollAppClass = DiceRollApp;
   const proto = DiceRollApp.prototype;
   if (proto[PATCHED]) return;
+  installPersonalityBurns(DiceRollApp);
   installDiligentRolls(DiceRollApp);
   installQuintessenceAutomation(DiceRollApp, createDetailedMessage);
   const originalCompute = proto.computePowerAmount;
@@ -213,6 +218,9 @@ export function installTradePower(DiceRollApp, spendOptions, renderDetailedCard,
   Object.defineProperty(proto, PATCHED, { value: true });
   installSingleUseRolls(DiceRollApp, spendOptions, renderDetailedCard);
   installFumblingMaster(DiceRollApp);
+  installAdversity(DiceRollApp);
+  installRehearsedTechnique(DiceRollApp);
+  installTraitImprovements(DiceRollApp);
 }
 
 export function nativeSacrifice(root) {
@@ -270,6 +278,9 @@ Hooks.once("ready", async () => {
 export function renderIntegratedTradePower(app, root) {
   if (RollAppClass && app instanceof RollAppClass) {
     renderLargerThanLife(app, root);
+    renderAdversity(app, root, RollAppClass);
+    renderTraitImprovements(app, root, RollAppClass);
+    renderRehearsedTechnique(app, root, RollAppClass);
     renderFumblingMaster(app, root, RollAppClass);
     renderTradePower(app, root, RollAppClass);
   }

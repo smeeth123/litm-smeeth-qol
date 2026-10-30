@@ -1,3 +1,4 @@
+import { themeTitle } from "./theme-title.mjs";
 import { chooseTropePlan, resolveTropeKit } from "./trope-creator.mjs";
 import { applyThemekit, openQolThemekitSelector } from "./themekit-selector.mjs";
 import { chooseThemebookSource } from "./theme-replacement.mjs";
@@ -313,7 +314,7 @@ async function confirmation(actor, { mode = "create", tropePlan = null } = {}) {
   const parity = mode === "parity";
   return foundry.applications.api.DialogV2.wait({
     window: { title: reforging ? "Be Reforged — Final Confirmation" : parity ? "Journey’s End — Confirm Replacement Hero" : "Hero Creator — Finish" }, classes: classes(),
-    content: `<div class="litm-qol-hero-step"><h2>Your Hero is ready</h2>${tropePlan ? `<p>Trope: <strong>${esc(tropePlan.tropeName)}</strong></p>${tropePlan.backpackTag ? `<p>Backpack tag: <mark class="tag positive">${esc(tropePlan.backpackTag)}</mark></p>` : ""}` : ""}<p>You created four themes:</p><ol>${themes.map(theme => `<li><strong>${esc(theme.name)}</strong> — ${esc(theme.system.powertags?.[0]?.name)}</li>`).join("")}</ol>${reforging ? '<div class="litm-qol-hero-reminder"><strong>Finishing will permanently replace all four old themes.</strong> Promise and Quintessences will remain on the Hero.</div>' : parity ? '<div class="litm-qol-hero-reminder"><strong>Finishing creates this as a separate replacement Hero.</strong> The retired Hero remains unchanged.</div>' : `<div class="litm-qol-hero-reminder"><strong>Before play begins:</strong><ul>${tropePlan?.backpackTag ? "" : "<li>Choose a Backpack tag.</li>"}<li>Create a relationship tag for each member of your fellowship.</li></ul></div>`}</div>`,
+    content: `<div class="litm-qol-hero-step"><h2>Your Hero is ready</h2>${tropePlan ? `<p>Trope: <strong>${esc(tropePlan.tropeName)}</strong></p>${tropePlan.backpackTag ? `<p>Backpack tag: <mark class="tag positive">${esc(tropePlan.backpackTag)}</mark></p>` : ""}` : ""}<p>You created four themes:</p><ol>${themes.map(theme => `<li><strong>${esc(themeTitle(theme))}</strong></li>`).join("")}</ol>${reforging ? '<div class="litm-qol-hero-reminder"><strong>Finishing will permanently replace all four old themes.</strong> Promise and Quintessences will remain on the Hero.</div>' : parity ? '<div class="litm-qol-hero-reminder"><strong>Finishing creates this as a separate replacement Hero.</strong> The retired Hero remains unchanged.</div>' : `<div class="litm-qol-hero-reminder"><strong>Before play begins:</strong><ul>${tropePlan?.backpackTag ? "" : "<li>Choose a Backpack tag.</li>"}<li>Create a relationship tag for each member of your fellowship.</li></ul></div>`}</div>`,
     buttons: [cancelButton(), nextButton("Continue to Naming", () => true, "finish")], rejectClose: false
   });
 }

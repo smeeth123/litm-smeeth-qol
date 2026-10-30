@@ -289,6 +289,22 @@ Result cards show a concise outcome and directly visible tag/status lists. Spend
 - Detailed 10+ results offer **Push Your Luck (+1 Power)**. Clicking accepts Narrator-assigned Consequences and adds 1 spendable Power. Click again to undo the bonus; if all Power is allocated, undo at least 1 Power of spending first. At most one bonus can be active per roll. The toggle state and budget survive reloads. Quick 10+ results retain the Great Success reminder.
 
 
+## Special Improvement Automation
+
+Adds usage trackers and roll automation for the following Special Improvements:
+
+- Circumstance: Expected Role, Familiar Matters, Strength from Adversity, Trudging Along.
+- Devotion: Catch Me When I Fall, Deeply Committed, Goes Both Ways, Unwavering.
+- Past: Face from the Past, Lessons Learned, Not Letting Go, Vivid Memory.
+- People: Shared Language, Stand Out, True to My Tribe, Trust in Legacy, Wisdom Handed Down.
+- Personality: Adaptable Persona, Big Personality, Lasting Impression, Unshakeable.
+- Skill or Trade: Deft Remedy, Learn from My Mistakes, Rehearsed Technique.
+- Trait: Innate Sense, Made for This, Moment to Shine, Pull Through.
+
+### Refresh Uses
+
+The Narrator can use Mist Engine Tools → Refresh Uses to reset scene or session uses for player-owned Heroes and their Fellowship Themecards.
+
 ## Quintessence automation: Beyond Luck
 
 Add an Item of type **Quintessence** named **Beyond Luck** to a character's sheet. On Quick and Detailed actions, double ones no longer force an automatic miss. A short note on double-one cards identifies the effect.
@@ -317,13 +333,13 @@ An owned Quintessence Item named **Larger Than Life** changes the roll dialog's 
 
 ## Quintessence usage: Lucky Bastard
 
-An owned **Lucky Bastard** Quintessence gains a checkbox beside its name on the character sheet, labeled **Available** or **Used**. Eligible Quick, Detailed, and Reaction chat cards show **Use Lucky Bastard → 7** for the roller or GM. Clicking changes the displayed result to 7 and the outcome to success with Consequences (or the corresponding Reaction outcome), then marks the Quintessence **Used**. The original total and dice remain saved for reference. Detailed cards enable their normal spending controls with the original Power budget; existing spending data is preserved. Double ones are excluded even with Beyond Luck.
+An owned **Lucky Bastard** Quintessence gains a dot tracker beside its name on the character sheet: empty when unused, filled when used. Eligible Quick, Detailed, and Reaction chat cards show **Use Lucky Bastard → 7** for the roller or GM. Clicking changes the displayed result to 7 and the outcome to success with Consequences (or the corresponding Reaction outcome), then marks the Quintessence **Used**. The original total and dice remain saved for reference. Detailed cards enable their normal spending controls with the original Power budget; existing spending data is preserved. Double ones are excluded even with Beyond Luck.
 
 Uncheck the sheet marker at the start of the next session.
 
 ## Quintessence automation: Virtuoso
 
-An owned **Virtuoso** Quintessence gets the same compact **Available / Used** session dot as Lucky Bastard. Eligible 7–9 Quick, Detailed, and Reaction cards show **Use Virtuoso → 10** to the roller or GM. Using it updates the displayed total and outcome in the original card, records the previous total, and marks Virtuoso used this session. Detailed rolls keep their existing Power budget and spending entries. The upgraded success also supports the existing Push Your Luck controls.
+An owned **Virtuoso** Quintessence gets the same session dot tracker as Lucky Bastard. Eligible 7–9 Quick, Detailed, and Reaction cards show **Use Virtuoso → 10** to the roller or GM. Using it updates the displayed total and outcome in the original card, records the previous total, and marks Virtuoso used this session. Detailed rolls keep their existing Power budget and spending entries. The upgraded success also supports the existing Push Your Luck controls.
 
 Uncheck the sheet marker at the start of the next session.
 

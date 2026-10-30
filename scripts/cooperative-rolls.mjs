@@ -1,3 +1,5 @@
+import { contributionBurnPower } from "./personality-improvements.mjs";
+import { themeTitle } from "./theme-title.mjs";
 import { importSystemModule } from "./system-imports.mjs";
 import { recordForTag } from "./single-use-tags.mjs";
 const MODULE_ID = "litm-smeeth-qol";
@@ -120,7 +122,7 @@ function helpStatusLabel(response) {
   if (!response || response.status === "pending") return `<span class="litm-qol-help-pending">Pending</span>`;
   if (response.status === "declined") return `<span class="litm-qol-help-declined">Declined</span>`;
   if (response.status === "accepted") {
-    const burn = response.burn ? ` <strong>(Burn for 3 Power)</strong>` : "";
+    const burn = response.burn ? ` <strong>(Burn for ${contributionBurnPower(response.tag)} Power)</strong>` : "";
     return `<span class="litm-qol-help-accepted">Accepted — <span class="tag positive">${foundry.utils.escapeHTML(response.tag?.name ?? "Tag")}</span>${burn}</span>`;
   }
   return foundry.utils.escapeHTML(response.status ?? "Pending");
@@ -224,7 +226,7 @@ async function chooseHelpTagFromCharacterSheet(actor, request) {
       if (!tag || (burn && !canBurnContribution(tag))) return;
       confirming = true;
       let result = null;
-      const power = burn ? 3 : 1;
+      const power = burn ? contributionBurnPower(tag) : 1;
       try {
         result = await foundry.applications.api.DialogV2.wait({
           window: { title: request.mode === "group" ? "Confirm Group Action Tag" : "Confirm Help Tag" },
@@ -267,16 +269,16 @@ async function chooseHelpTagFromCharacterSheet(actor, request) {
       const burnInstruction = request.mode === "group"
         ? (request.existingBurnPresent
           ? "A tag is already being burned for this roll, so additional burn contributions are unavailable."
-          : "Click a tag for +1 Power, or click its burn icon for +3 Power. Only one tag may be burned.")
+          : "Click a tag for +1 Power, or click its burn icon to burn it for Power. Only one tag may be burned.")
         : "Click an available tag on this sheet.";
       banner.innerHTML = `<strong>${request.mode === "group" ? "Choose one tag representing your Hero’s most significant contribution to the joint effort." : "Choose one tag to help " + foundry.utils.escapeHTML(request.requesterActorName) + "."}</strong><span>${burnInstruction} Burned tags cannot be contributed.</span>`;
       // This selector also reaches tags on a hidden sheet tab or compact view.
       const picker = document.createElement("div"); picker.className = "litm-qol-contribution-picker";
       picker.innerHTML = `<label>Available tag<select name="contribution">${tags.map(tag => `<option value="${tag.id}">${foundry.utils.escapeHTML(tag.name)}${` (${sourceLabel(tag)})`}</option>`).join("")}</select></label>
-        ${request.mode === "group" && !request.existingBurnPresent ? '<label><input type="checkbox" name="burnContribution"> Burn for 3 Power</label>' : ''}
+        ${request.mode === "group" && !request.existingBurnPresent ? '<label><input type="checkbox" name="burnContribution"> <span class="litm-qol-burn-power-label">Burn for Power</span></label>' : ''}
         <button type="button">Use Selected Tag</button>`;
       const select = picker.querySelector("select"); const burnBox = picker.querySelector("input");
-      const syncBurn = () => { const tag = tags.find(tag => tag.id === select.value); if (burnBox) { burnBox.disabled = !canBurnContribution(tag); if (burnBox.disabled) burnBox.checked = false; } };
+      const syncBurn = () => { const tag = tags.find(tag => tag.id === select.value); if (burnBox) { picker.querySelector(".litm-qol-burn-power-label").textContent = `Burn for ${contributionBurnPower(tag)} Power`; burnBox.disabled = !canBurnContribution(tag); if (burnBox.disabled) burnBox.checked = false; } };
       select.addEventListener("change", syncBurn); syncBurn();
       picker.querySelector("button").addEventListener("click", () => { if (!confirming) void confirmTag(tags.find(tag => tag.id === select.value), Boolean(burnBox?.checked)); });
       banner.append(picker);
@@ -359,7 +361,7 @@ async function socketPromptHelperForTag(request) {
         <div class="litm-qol-help-confirm">
           <p>${request.mode === "group" ? "The Fellowship is acting together using one " + foundry.utils.escapeHTML(request.rollType) + " roll. The outcome affects the entire group." : "<strong>" + foundry.utils.escapeHTML(request.requesterActorName) + "</strong> is asking for help with a " + foundry.utils.escapeHTML(request.rollType) + " roll."}</p>
           <p>Contribute one tag from <strong>${foundry.utils.escapeHTML(actor.name)}</strong> to give the roll <strong>+1 Power</strong> if the Narrator approves?</p>
-          ${request.mode === "group" ? `<p>${request.existingBurnPresent ? "A tag is already being burned for this roll, so your contribution must be worth 1 Power." : "You may click the tag’s burn icon on your sheet to offer it for 3 Power instead."}</p>` : ""}
+          ${request.mode === "group" ? `<p>${request.existingBurnPresent ? "A tag is already being burned for this roll, so your contribution must be worth 1 Power." : "You may click the tag’s burn icon on your sheet to offer it for burn Power instead."}</p>` : ""}
         </div>`,
       yes: { label: "Choose a Tag" },
       no: { label: "Decline" }
@@ -427,7 +429,7 @@ async function socketPromptGmForHelpApproval(request) {
             <fieldset class="litm-qol-group-burn-review">
               <legend>Burned contribution (maximum one)</legend>
               <label><input type="radio" name="burnUserId" value=""> None</label>
-              ${burnCandidates.map((entry, index) => `<label><input type="radio" name="burnUserId" value="${entry.userId}" ${burnCandidates.length === 1 && index === 0 ? "checked" : ""}> ${foundry.utils.escapeHTML(entry.response.tag.name)} (from ${foundry.utils.escapeHTML(entry.response.tag.actorName)}) — 3 Power</label>`).join("")}
+              ${burnCandidates.map((entry, index) => `<label><input type="radio" name="burnUserId" value="${entry.userId}" ${burnCandidates.length === 1 && index === 0 ? "checked" : ""}> ${foundry.utils.escapeHTML(entry.response.tag.name)} (from ${foundry.utils.escapeHTML(entry.response.tag.actorName)}) — ${contributionBurnPower(entry.response.tag)} Power</label>`).join("")}
             </fieldset>` : ""}
           ${fellowshipTags.length ? `<fieldset class="litm-qol-fellowship-contributions"><legend>Relevant Fellowship theme power tags</legend><p>Invoke any relevant tags. These are additional to each Hero’s single contribution.</p>${fellowshipTags.map(tag => `<label><input type="checkbox" name="fellowshipTag" value="${tag.id}"> ${foundry.utils.escapeHTML(tag.name)} (${foundry.utils.escapeHTML(tag.actorName)})</label>`).join("")}</fieldset>` : ""}
           <fieldset class="litm-qol-help-weaknesses">
@@ -901,7 +903,7 @@ export function getFellowshipPowerTags(actorIds) {
   }
   return [...cards.values()].flatMap(card => (card.system.powertags ?? []).flatMap((tag, index) =>
     tag.name?.trim() && !tag.planned && !tag.burned ? [{ id: `fellowship:${card.id}:${index}`,
-      actorId: card.id, actorName: card.name, index, name: tag.name.trim() }] : []));
+      actorId: card.id, actorName: themeTitle(card), index, name: tag.name.trim() }] : []));
 }
 
 const CONFIRMATION = Symbol.for(`${MODULE_ID}.groupConfirmation`);

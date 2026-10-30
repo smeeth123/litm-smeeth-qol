@@ -1,3 +1,9 @@
+import { applySkillBookkeeping, captureSkillMistakes } from "./skill-improvements.mjs";
+import { applyPersonalityAction, invokedThemeSources } from "./personality-improvements.mjs";
+import { applyTrustInLegacy, invokedLegacyTags } from "./people-improvements.mjs";
+import { applyUsageRefresh, configureUsageRefresh } from "./usage-refresh.mjs";
+import { applyLessonsLearned, applyVividMemory, promptVividMemoryForMessage, registerPastSocket } from "./past-improvements.mjs";
+import { applyCatchMeWhenIFall, registerDevotionSocket } from "./devotion-improvements.mjs";
 import { installHelpRollState, captureHelpBookkeeping, applyHelpBookkeeping } from "./help-bookkeeping.mjs";
 import { applyLuckyBastard, applyVirtuoso } from "./lucky-bastard.mjs";
 const MODULE_ID = "litm-smeeth-qol";
@@ -248,6 +254,7 @@ async function applyConsumption(payload, user) {
     if (record.state !== "consumed") await updateActorRecord(actor, use.id, "consumed", { messageUuid: message.uuid });
   }
   await applyHelpBookkeeping(message, context);
+  await applySkillBookkeeping(message, context);
   await message.update({ [`flags.${MODULE_ID}.singleUseCleanupError`]: false, [`flags.${MODULE_ID}.singleUseCleanupComplete`]: true });
   return true;
 }
@@ -255,6 +262,13 @@ async function applyConsumption(payload, user) {
 export function runSingleUseOperation(payload, senderId = game.user.id) {
   const operation = operationQueue.then(() => {
     const user = game.users.get(senderId);
+    if (payload.action === "refreshUsage") return applyUsageRefresh(payload, user);
+    if (payload.action === "deftRemedy") return applyLessonsLearned({ ...payload, feature: "deftRemedy" }, user, renderNativeCard);
+    if (payload.action === "lessonsLearned") return applyLessonsLearned(payload, user, renderNativeCard);
+    if (payload.action === "vividMemory") return applyVividMemory(payload, user);
+    if (["adaptablePersona", "unshakeable"].includes(payload.action)) return applyPersonalityAction(payload, user, renderNativeCard);
+    if (payload.action === "trustInLegacy") return applyTrustInLegacy(payload, user, renderNativeCard);
+    if (payload.action === "catchMeWhenIFall") return applyCatchMeWhenIFall(payload, user, renderNativeCard);
     if (payload.action === "luckyBastard") return applyLuckyBastard(payload, user, renderNativeCard);
     if (payload.action === "virtuoso") return applyVirtuoso(payload, user, renderNativeCard);
     return payload.action === "consume" ? applyConsumption(payload, user) : applySpend(payload, user);
@@ -273,6 +287,13 @@ async function dispatch(payload) {
 }
 
 export const useLuckyBastard = payload => dispatch({ action: "luckyBastard", messageUuid: payload.messageUuid });
+configureUsageRefresh(period => dispatch({ action: "refreshUsage", period }));
+
+export const useLessonsLearned = payload => dispatch({ ...payload, action: payload.feature === "deftRemedy" ? "deftRemedy" : "lessonsLearned" });
+export const useVividMemory = payload => dispatch({ ...payload, action: "vividMemory" });
+export const usePersonalityAction = payload => dispatch({ ...payload, action: payload.feature === "unshakeable" ? "unshakeable" : "adaptablePersona" });
+export const useTrustInLegacy = payload => dispatch({ ...payload, action: "trustInLegacy" });
+export const useCatchMeWhenIFall = payload => dispatch({ action: "catchMeWhenIFall", messageUuid: payload.messageUuid, themeUuid: payload.themeUuid });
 export const useVirtuoso = payload => dispatch({ action: "virtuoso", messageUuid: payload.messageUuid });
 
 function reportError(error) {
@@ -411,6 +432,7 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
         return `${html}<span hidden class="litm-qol-roll-context" data-context="${foundry.utils.escapeHTML(JSON.stringify(context.data))}"></span>`;
       };
     }
+    if (context?.data.rehearsed) return;
     return originalShow.call(this, promises, roll);
   };
   const originalExecute = proto.executeRoll;
@@ -444,7 +466,7 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
     catch (error) { ui.notifications.warn(error.message); return; }
     let finish;
     const context = { data: { id: foundry.utils.randomID(), rollType: this.rollType, actorId: this.actor.id,
-      sceneId: game.items.get(this.selectedStoryTags?.[0]?.sceneDataItemId)?.system.sceneKey ?? globalThis.canvas?.scene?.id ?? game.scenes?.active?.id ?? null, singleUse: [...uses.values()], help, group: clone(this._litmQolGroupRoll ?? null) },
+      sceneId: game.items.get(this.selectedStoryTags?.[0]?.sceneDataItemId)?.system.sceneKey ?? globalThis.canvas?.scene?.id ?? game.scenes?.active?.id ?? null, singleUse: [...uses.values()], skillMistakes: captureSkillMistakes(this, applied), rehearsed: clone(this._litmQolRehearsedExecuting ?? null), themeSources: invokedThemeSources(this, applied), legacyTags: invokedLegacyTags(this, applied), help, group: clone(this._litmQolGroupRoll ?? null) },
       done: new Promise(resolve => { finish = resolve; }) };
     this._litmQolRollContext = context;
     executions.set(context.data.id, context);
@@ -464,6 +486,7 @@ Hooks.on("preCreateChatMessage", (message, data) => {
   if (!marker) return;
   const context = JSON.parse(marker.dataset.context);
   marker.remove();
+  context.initialOutcome = root.querySelector(".consequence-result-negative") ? -1 : root.querySelector(".consequence-result-neutral") ? 0 : root.querySelector(".consequence-result-positive") ? 1 : null;
   const flags = clone(data.flags ?? message.flags ?? {});
   flags[MODULE_ID] = { ...flags[MODULE_ID], rollContext: context };
   if (flags[SYSTEM_ID]?.detailedSpend?.diceRollHTML) {
@@ -479,10 +502,11 @@ Hooks.on("preCreateChatMessage", (message, data) => {
 
 async function consumeForMessage(message) {
   const context = message.getFlag(MODULE_ID, "rollContext");
-  if (!context || !(context.singleUse?.length || context.help?.burns?.length || context.help?.weaknesses?.length || context.help?.relationships?.length || context.help?.fellowshipTags?.length)) return;
+  if (!context || !(context.singleUse?.length || context.help?.burns?.length || context.help?.weaknesses?.length || context.help?.relationships?.length || context.help?.fellowshipTags?.length || context.help?.adversity?.length || context.help?.vividMemory?.length || context.skillMistakes?.length)) return;
   try {
     await executions.get(context.id)?.done;
     await dispatch({ action: "consume", messageUuid: message.uuid });
+    await promptVividMemoryForMessage(message, useVividMemory, { automatic: true });
   } catch (error) {
     await message.update({ [`flags.${MODULE_ID}.singleUseCleanupError`]: true }).catch(() => {});
     reportError(error);
@@ -512,6 +536,8 @@ Hooks.on("renderApplicationV2", (app, html) => {
 
 export function registerSingleUseSocket(api = socketlib) {
   socket = api.registerModule(MODULE_ID);
+  registerDevotionSocket(socket);
+  registerPastSocket(socket);
   socket.register("singleUseOperation", function(payload) { return runSingleUseOperation(payload, this.socketdata.userId); });
 }
 Hooks.once("socketlib.ready", () => registerSingleUseSocket());

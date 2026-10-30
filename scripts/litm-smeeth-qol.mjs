@@ -1,3 +1,9 @@
+import { renderPersonalityActions } from "./personality-improvements.mjs";
+import { renderTrustInLegacy, renderLegacyConfiguration, configureLegacyDetails, applyLegacyDetails } from "./people-improvements.mjs";
+import { themeTitle } from "./theme-title.mjs";
+import { renderPastActions } from "./past-improvements.mjs";
+import { renderCatchMeWhenIFall } from "./devotion-improvements.mjs";
+import { renderSpecialImprovementUsage } from "./circumstance-improvements.mjs";
 import { improveResetUpdate, FUMBLING_OVERFLOW } from "./fumbling-master.mjs";
 import { renderQuintessenceUsage } from "./quintessence-usage.mjs";
 import { renderLuckyBastard, renderVirtuoso } from "./lucky-bastard.mjs";
@@ -10,7 +16,7 @@ import "./sheet-scroll.mjs";
 import "./fellowship-sync.mjs";
 import { clearCooperativeRoll } from "./cooperative-rolls.mjs";
 import { cleanResultCard } from "./chat-cards.mjs";
-import { decorateSingleUseTags, useLuckyBastard, useVirtuoso } from "./single-use-tags.mjs";
+import { decorateSingleUseTags, useLuckyBastard, useVirtuoso, useCatchMeWhenIFall, useTrustInLegacy, usePersonalityAction, useLessonsLearned, useVividMemory } from "./single-use-tags.mjs";
 import { decorateTradeCard, isNativeSacrificeMessage, nativeSacrifice, renderIntegratedTradePower } from "./roll-integration.mjs";
 import { awardPromise } from "./promise-manager.mjs";
 import "./moment-of-fulfillment.mjs";
@@ -86,6 +92,10 @@ async function onChatCardRendered(message, html) {
   cleanResultCard(message, root);
   renderLuckyBastard(message, root, useLuckyBastard);
   renderVirtuoso(message, root, useVirtuoso);
+  renderCatchMeWhenIFall(message, root, useCatchMeWhenIFall);
+  renderTrustInLegacy(message, root, useTrustInLegacy);
+  renderPersonalityActions(message, root, usePersonalityAction);
+  renderPastActions(message, root, useLessonsLearned, useVividMemory);
   decorateTradeCard(message, root);
   renderNativeSacrificeActions(message, root);
 
@@ -133,6 +143,8 @@ async function onChatCardRendered(message, html) {
 
 function renderActorEnhancements(app, html) {
   renderQuintessenceUsage(getActorFromApp(app), getRootElement(html));
+  renderSpecialImprovementUsage(getActorFromApp(app), getRootElement(html));
+  renderLegacyConfiguration(getActorFromApp(app), getRootElement(html));
   decorateSingleUseTags(getActorFromApp(app), getRootElement(html));
   renderDiligentTracks(getActorFromApp(app), getRootElement(html));
   addImproveThemeButtons(app, html);
@@ -149,10 +161,7 @@ function tagIsVisible(tag) {
 }
 
 function themeDisplayName(theme) {
-  const themeName = String(theme?.name ?? "Theme").trim() || "Theme";
-  const titleTag = (theme?.system?.powertags ?? []).find(tag => tagIsVisible(tag));
-  const title = String(titleTag?.name ?? "").trim();
-  return title ? `${themeName} – ${title}` : themeName;
+  return themeTitle(theme);
 }
 
 function blankThemeTag(name) {
@@ -536,8 +545,8 @@ async function promptSpecialImprovement(theme) {
   });
   if (isImproveNavigation(result)) return result;
   if (!result) return null;
-  if (result.mode === "activate" && result.index < 5 && improvements[result.index] && !improvements[result.index].active) return result;
-  if (result.mode === "create" && result.index >= 0 && result.index < 5 && result.name && result.description) return result;
+  if (result.mode === "activate" && result.index < 5 && improvements[result.index] && !improvements[result.index].active) return configureLegacyDetails(theme, result, improvements[result.index].name);
+  if (result.mode === "create" && result.index >= 0 && result.index < 5 && result.name && result.description) return configureLegacyDetails(theme, result, result.name);
   ui.notifications.warn("Choose an available Special Improvement or enter both a title and description.");
   return null;
 }
@@ -761,6 +770,8 @@ async function commitThemeImprovement(actor, theme, action, details, rewrite, { 
     } else {
       specialImprovements[details.index] = { name: details.name, description: details.description, active: true };
     }
+    applyLegacyDetails(powertags, specialImprovements, details, rewrite);
+    if (details.legacyTag) update["system.powertags"] = powertags;
     update["system.specialImprovements"] = specialImprovements;
   } else if (action === "reset") {
     if (details.abandon) update["system.abandon"] = 0;
@@ -810,6 +821,7 @@ function applyStagedThemeImprovement(theme, draftState, action, details, rewrite
     } else {
       specialImprovements[details.index] = { name: details.name, description: details.description, active: true };
     }
+    applyLegacyDetails(powertags, specialImprovements, details, rewrite);
   } else if (action === "reset") {
     if (details.abandon) theme.system.abandon = 0;
     if (details.milestone) theme.system.milestone = 0;
@@ -1085,10 +1097,7 @@ function sacrificeActionButton(action) {
 }
 
 function sacrificeThemeTitle(theme) {
-  const titleTag = (theme.system?.powertags ?? []).find(tag => String(tag?.name ?? "").trim() && !tag?.planned);
-  const title = String(titleTag?.name ?? "").trim();
-  const type = String(theme.system?.name ?? theme.name ?? "Theme").trim();
-  return title ? `${type} – ${title}` : type;
+  return themeTitle(theme);
 }
 
 function sacrificeThemes(actor) {

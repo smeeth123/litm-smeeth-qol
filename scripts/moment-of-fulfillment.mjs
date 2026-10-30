@@ -1,3 +1,4 @@
+import { themeTitle } from "./theme-title.mjs";
 import { browserSources, loadBrowserItems } from "./theme-browser.mjs";
 import { awardPromise, completeMomentOfFulfillment, storedPromise } from "./promise-manager.mjs";
 import { runHeroCreator } from "./hero-creator.mjs";
@@ -111,8 +112,7 @@ function activeTag(tag) {
 }
 
 function themeLabel(theme) {
-  const title = (theme.system.powertags ?? []).find(activeTag)?.name;
-  return title ? `${theme.name} – ${title}` : theme.name;
+  return themeTitle(theme);
 }
 
 function reforgeBenefits(actor) {

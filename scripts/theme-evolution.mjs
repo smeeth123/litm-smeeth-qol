@@ -1,3 +1,4 @@
+import { themeTitle } from "./theme-title.mjs";
 import { runReplaceTheme } from "./theme-replacement.mjs";
 import { awardPromise, promiseProjection } from "./promise-manager.mjs";
 
@@ -40,9 +41,7 @@ function escapeAttribute(value) {
 }
 
 function themeDisplayName(theme) {
-  const themeName = String(theme?.name ?? "Theme").trim() || "Theme";
-  const title = String((theme?.system?.powertags ?? []).find(visible)?.name ?? "").trim();
-  return title ? `${themeName} – ${title}` : themeName;
+  return themeTitle(theme);
 }
 
 function rulesLabel(label, tooltip) {
