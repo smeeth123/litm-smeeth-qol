@@ -266,12 +266,6 @@ function specialImprovementSlots(theme) {
   return improvements;
 }
 
-function hasAvailableSpecialImprovement(theme) {
-  return specialImprovementSlots(theme)
-    .slice(0, 5)
-    .some(improvement => !String(improvement?.name ?? "").trim() || !improvement.active);
-}
-
 function isFellowshipTheme(theme) {
   return theme?.documentName === "Actor" && theme.type === "litm-fellowship-themecard";
 }
@@ -287,7 +281,6 @@ function improveChoiceRow(value, label, tooltip, disabled = false) {
 async function chooseThemeImprovement(actor, theme, { allowBack = false, allowMilestoneReset = true } = {}) {
   const fellowshipTheme = isFellowshipTheme(theme);
   const trackersEmpty = Number(theme.system?.abandon ?? 0) < 1 && (!allowMilestoneReset || Number(theme.system?.milestone ?? 0) < 1);
-  const specialUnavailable = !hasAvailableSpecialImprovement(theme);
   return foundry.applications.api.DialogV2.wait({
     window: improveDialogWindow(improveDialogTitle(theme, "Choose an Improvement")),
     classes: improveDialogClasses(),
@@ -297,7 +290,7 @@ async function chooseThemeImprovement(actor, theme, { allowBack = false, allowMi
         <div class="litm-qol-improve-choice-list">
           ${improveChoiceRow("power", "Create a new power tag", IMPROVE_POWER_TOOLTIP)}
           ${improveChoiceRow("weakness", "Remove or add a weakness tag", IMPROVE_WEAKNESS_TOOLTIP)}
-          ${improveChoiceRow("special", "Gain a Special Improvement", IMPROVE_SPECIAL_TOOLTIP, specialUnavailable)}
+          ${improveChoiceRow("special", "Gain a Special Improvement", IMPROVE_SPECIAL_TOOLTIP)}
           ${improveChoiceRow("reset", allowMilestoneReset ? "Reset Abandon, Milestones, or both" : "Reset Abandon", IMPROVE_RESET_TOOLTIP, trackersEmpty)}
           ${fellowshipTheme ? "" : improveChoiceRow("promise", "Mark Promise", IMPROVE_PROMISE_TOOLTIP)}
         </div>
@@ -466,21 +459,20 @@ async function promptWeaknessImprovement(theme) {
 
 async function promptSpecialImprovement(theme) {
   const improvements = specialImprovementSlots(theme);
-  const descriptions = await Promise.all(improvements.slice(0, 5).map(async improvement => {
+  const descriptions = await Promise.all(improvements.map(async improvement => {
     const description = String(improvement?.description ?? "").trim();
     return description ? foundry.applications.ux.TextEditor.implementation.enrichHTML(description, {
       secrets: Boolean(theme.isOwner ?? theme.parent?.isOwner), relativeTo: theme.uuid ? theme : theme.parent
     }) : "<p>No description provided.</p>";
   }));
   const availableOptions = improvements
-    .slice(0, 5)
     .map((improvement, index) => ({ improvement, index }))
     .filter(({ improvement }) => String(improvement?.name ?? "").trim() && !improvement.active)
     .map(({ improvement, index }) => `<option value="${index}">${foundry.utils.escapeHTML(improvement.name)}</option>`)
     .join("");
-  const blankIndex = improvements.slice(0, 5).findIndex(improvement => !String(improvement?.name ?? "").trim());
-  const canCreate = blankIndex >= 0;
-  const defaultMode = availableOptions ? "activate" : canCreate ? "create" : "";
+  const existingBlank = improvements.findIndex(improvement => !String(improvement?.name ?? "").trim());
+  const blankIndex = existingBlank >= 0 ? existingBlank : improvements.length;
+  const defaultMode = availableOptions ? "activate" : "create";
   const result = await foundry.applications.api.DialogV2.wait({
     window: { ...improveDialogWindow(improveDialogTitle(theme, "Special Improvement")), resizable: true },
     position: { width: 600, height: 650 },
@@ -495,8 +487,8 @@ async function promptSpecialImprovement(theme) {
         <section class="litm-qol-special-preview" aria-label="Special Improvement description"${defaultMode === "activate" ? "" : " hidden"}>
           <div class="litm-qol-special-description"></div>
         </section>
-        <label class="litm-qol-improve-detail-choice${canCreate ? "" : " disabled"}">
-          <input type="checkbox" name="specialMode" value="create" ${defaultMode === "create" ? "checked" : ""} ${canCreate ? "" : "disabled"}>
+        <label class="litm-qol-improve-detail-choice">
+          <input type="checkbox" name="specialMode" value="create" ${defaultMode === "create" ? "checked" : ""}>
           <span>Create a new Special Improvement</span>
         </label>
         <input type="text" name="specialName" autocomplete="off" placeholder="Special Improvement title" ${defaultMode === "create" ? "" : "disabled"}>
@@ -545,8 +537,8 @@ async function promptSpecialImprovement(theme) {
   });
   if (isImproveNavigation(result)) return result;
   if (!result) return null;
-  if (result.mode === "activate" && result.index < 5 && improvements[result.index] && !improvements[result.index].active) return configureLegacyDetails(theme, result, improvements[result.index].name);
-  if (result.mode === "create" && result.index >= 0 && result.index < 5 && result.name && result.description) return configureLegacyDetails(theme, result, result.name);
+  if (result.mode === "activate" && Number.isInteger(result.index) && result.index >= 0 && result.index < improvements.length && String(improvements[result.index]?.name ?? "").trim() && !improvements[result.index].active) return configureLegacyDetails(theme, result, improvements[result.index].name);
+  if (result.mode === "create" && result.index === blankIndex && result.name && result.description) return configureLegacyDetails(theme, result, result.name);
   ui.notifications.warn("Choose an available Special Improvement or enter both a title and description.");
   return null;
 }
@@ -768,6 +760,7 @@ async function commitThemeImprovement(actor, theme, action, details, rewrite, { 
     if (details.mode === "activate") {
       specialImprovements[details.index] = { ...specialImprovements[details.index], active: true };
     } else {
+      if (String(specialImprovements[details.index]?.name ?? "").trim()) throw new Error("The Special Improvement list changed. Choose an empty slot again.");
       specialImprovements[details.index] = { name: details.name, description: details.description, active: true };
     }
     applyLegacyDetails(powertags, specialImprovements, details, rewrite);
@@ -819,6 +812,7 @@ function applyStagedThemeImprovement(theme, draftState, action, details, rewrite
     if (details.mode === "activate") {
       specialImprovements[details.index] = { ...specialImprovements[details.index], active: true };
     } else {
+      if (String(specialImprovements[details.index]?.name ?? "").trim()) throw new Error("The Special Improvement list changed. Choose an empty slot again.");
       specialImprovements[details.index] = { name: details.name, description: details.description, active: true };
     }
     applyLegacyDetails(powertags, specialImprovements, details, rewrite);

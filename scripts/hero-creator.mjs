@@ -57,7 +57,7 @@ function normalizedType(value) {
   return ["litm-origin", "litm-adventure", "litm-greatness", "litm-variable"].includes(value) ? value : "litm-origin";
 }
 
-function fiveSpecials(specials) {
+function initialSpecialImprovements(specials) {
   const result = (specials ?? []).filter(special => String(special?.name ?? "").trim())
     .map(special => ({
       name: String(special.name ?? "").trim(),
@@ -65,7 +65,7 @@ function fiveSpecials(specials) {
       active: false
     }));
   while (result.length < 5) result.push({ name: "", description: "", active: false });
-  return result.slice(0, 5);
+  return result;
 }
 
 function checkboxRow({ name, value, label, kind = "positive", question = "", answerName = "", answer = "", placeholder = "Your answer" }) {
@@ -206,7 +206,7 @@ async function configureThemekit(draft, themekit, number) {
     name: themekit.system.themekit_type || themekit.name,
     "system.powertags": [...activePowers, ...plannedPowers],
     "system.weaknesstags": [activeWeakness, ...plannedWeaknesses],
-    "system.specialImprovements": fiveSpecials(specials),
+    "system.specialImprovements": initialSpecialImprovements(specials),
     "system.quest": result.quest, "system.type": type, "system.color": type,
     "system.abandon": 0, "system.improve": 0, "system.milestone": 0
   };
@@ -284,7 +284,7 @@ async function configureThemebook(source, number) {
     system: {
       ...foundry.utils.deepClone(data.system),
       powertags: [...activePowers, ...plannedPowers], weaknesstags: [activeWeakness, ...plannedWeaknesses],
-      specialImprovements: fiveSpecials(specials),
+      specialImprovements: initialSpecialImprovements(specials),
       quest: result.quest, type: normalizedType(source.system.type), color: normalizedType(source.system.color || source.system.type),
       tabCategory: "main", abandon: 0, improve: 0, milestone: 0
     }
