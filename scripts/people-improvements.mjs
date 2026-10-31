@@ -4,8 +4,9 @@ const SYSTEM_ID = "mist-engine-fvtt";
 const KEY = "trust-in-legacy";
 const TAG_ID = "litmQolLegacyId";
 const CHOSEN = "litmQolLegacyTag";
+const SIGNATURE_STATUS = "litmQolSignatureStatus";
 const normalize = value => String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-const tagSpecial = name => ["trust in legacy", "rehearsed technique", "rehearsed techniques"].includes(normalize(name));
+const tagSpecial = name => ["trust in legacy", "rehearsed technique", "rehearsed techniques", "signature move", "invulnerability"].includes(normalize(name));
 const legacy = theme => theme?.type === "themebook" && !theme.system.options?.isStoryTheme
   && theme.system.specialImprovements?.find(entry => entry.active && normalize(entry.name) === "trust in legacy");
 const cards = new Map();
@@ -13,7 +14,7 @@ const cards = new Map();
 export function extendPeopleSchema() {
   if (game.system.id !== SYSTEM_ID) return;
   for (const Model of Object.values(CONFIG.Item.dataModels)) {
-    for (const [field, key] of [["powertags", TAG_ID], ["specialImprovements", CHOSEN]]) {
+    for (const [field, key] of [["powertags", TAG_ID], ["specialImprovements", CHOSEN], ["specialImprovements", SIGNATURE_STATUS]]) {
       const entry = Model.schema.fields[field]?.element;
       if (entry && !entry.fields[key]) entry.extendFields({ [key]: new foundry.data.fields.StringField({ required: false, blank: true, initial: "" }) });
     }
@@ -27,15 +28,20 @@ export async function configureLegacyDetails(theme, details, name) {
   const tags = (theme.system.powertags ?? []).map((tag, index) => ({ tag, index }))
     .filter(({ tag }) => tag.name?.trim() && !tag.planned && !tag.expired);
   if (!tags.length) { ui.notifications.warn(`Add a power tag before choosing ${name}.`); return null; }
-  const index = await foundry.applications.api.DialogV2.wait({
-    window: { title: `${name} — Choose a Tag` }, classes: ["litm-qol-system-dialog"],
-    content: `<p>${normalize(name) === "trust in legacy" ? "Choose a power tag describing your People’s abilities or ways." : "Choose a power tag from this theme for Rehearsed Technique."}</p><select name="legacyTag">${tags.map(({ tag, index }) => `<option value="${index}">${foundry.utils.escapeHTML(tag.name)}</option>`).join("")}</select>`,
+  const signature = normalize(name) === "signature move";
+  const prior = theme.system.specialImprovements?.[details.index];
+  const statusField = signature ? `<label>Tier-2 status name<input name="signatureStatus" type="text" maxlength="200" value="${foundry.utils.escapeHTML(prior?.[SIGNATURE_STATUS] ?? "")}"></label>` : "";
+  const selection = await foundry.applications.api.DialogV2.wait({
+    window: { title: `${name} — Choose a Tag${signature ? " and Status" : ""}` }, classes: ["litm-qol-system-dialog"],
+    content: `<p>${normalize(name) === "trust in legacy" ? "Choose a power tag describing your People’s abilities or ways." : normalize(name) === "invulnerability" ? "Choose a power tag representing your protection." : signature ? "Choose the power tag and tier-2 status for your Signature Move." : "Choose a power tag from this theme for Rehearsed Technique."}</p><select name="legacyTag">${tags.map(({ tag, index }) => `<option value="${index}"${(signature || normalize(name) === "invulnerability") && tag[TAG_ID] && tag[TAG_ID] === prior?.[CHOSEN] ? " selected" : ""}>${foundry.utils.escapeHTML(tag.name)}</option>`).join("")}</select>${statusField}`,
     buttons: [{ action: "cancel", label: "Cancel", callback: () => null },
-      { action: "choose", label: "Choose Tag", default: true, callback: (_event, button) => Number(button.form.elements.legacyTag.value) }], rejectClose: false
+      { action: "choose", label: signature ? "Save" : "Choose Tag", default: true, callback: (_event, button) => signature ? { index: Number(button.form.elements.legacyTag.value), status: button.form.elements.signatureStatus.value.trim() } : Number(button.form.elements.legacyTag.value) }], rejectClose: false
   });
+  const index = signature ? selection?.index : selection;
   const chosen = tags.find(entry => entry.index === index);
   if (!chosen) return null;
-  return { ...details, legacyTag: { index, name: chosen.tag.name, id: chosen.tag[TAG_ID] || foundry.utils.randomID() } };
+  if (signature && (!selection.status || selection.status.length > 200)) { ui.notifications.warn("Enter a status name of 1–200 characters."); return null; }
+  return { ...details, ...(signature ? { signatureStatus: selection.status } : {}), legacyTag: { index, name: chosen.tag.name, id: chosen.tag[TAG_ID] || foundry.utils.randomID() } };
 }
 export function applyLegacyDetails(powertags, improvements, details, rewrite) {
   if (!details.legacyTag) return;
@@ -47,6 +53,11 @@ export function applyLegacyDetails(powertags, improvements, details, rewrite) {
       || !tagSpecial(improvements[details.index]?.name)) throw new Error("The chosen tag or Special Improvement changed. Choose it again.");
   tag[TAG_ID] = chosen.id;
   improvements[details.index][CHOSEN] = chosen.id;
+  if (normalize(improvements[details.index].name) === "signature move") {
+    const status = String(details.signatureStatus ?? "").trim();
+    if (!status || status.length > 200) throw new Error("Choose the tier-2 status for Signature Move.");
+    improvements[details.index][SIGNATURE_STATUS] = status;
+  }
 }
 
 export function renderLegacyConfiguration(actor, root) {
@@ -61,8 +72,9 @@ export function renderLegacyConfiguration(actor, root) {
     const button = document.createElement("button"); button.type = "button"; button.className = "litm-qol-legacy-tag";
     button.style.cssText = "flex:0 0 auto;width:auto;min-height:0;padding:0 4px;border:0;background:transparent;box-shadow:none";
     button.innerHTML = '<i class="fa-solid fa-tag" aria-hidden="true"></i>';
-    button.setAttribute("aria-label", `Choose ${improvement.name} tag`);
+    button.setAttribute("aria-label", normalize(improvement.name) === "signature move" ? "Configure Signature Move" : `Choose ${improvement.name} tag`);
     button.dataset.tooltip = chosen ? `${improvement.name}: ${chosen.name}. Click to change the chosen tag.` : `Choose a tag for ${improvement.name}.`;
+    if (normalize(improvement.name) === "signature move") button.dataset.tooltip = `${improvement.name}: ${chosen?.name ?? "choose a tag"}; ${improvement[SIGNATURE_STATUS] ? `${improvement[SIGNATURE_STATUS]}-2` : "choose a status"}. Click to configure.`;
     button.addEventListener("click", async event => {
       event.stopPropagation(); if (button.disabled) return; button.disabled = true;
       try {

@@ -1,3 +1,14 @@
+import { captureForeseeBefore, finalizeForeseeJournal, recordForeseeOperation, configureForeseeOperation, applyForeseeOutcome } from "./foresee-outcome.mjs";
+import { applySecondWind, configureSecondWind } from "./second-wind.mjs";
+import { sceneTagRecipientsShared } from "./scene-recipients.mjs";
+import { applyDominionManual, configureDominionUsage } from "./dominion-improvements.mjs";
+import { applyDestinyOperation, configureDestinyOperations, captureDestinyThemes, completeForetold } from "./destiny-improvements.mjs";
+import { applyUncannyManual, configureUncannyUsage, applyRepelWitchery, captureUncannyThemes } from "./uncanny-improvements.mjs";
+import { applySignatureMove, captureRelicSignatures } from "./relic-improvements.mjs";
+import { applyProdigiousAction, captureProdigiousThemes } from "./prodigious-improvements.mjs";
+import { applyAppliedExpertise, captureKnowledgeThemes, promptAppliedExpertise } from "./knowledge-improvements.mjs";
+import { applyInfluenceAction, captureInfluenceThemes, followMeEnabled, canSpendInfluencePower, renderInfluencePowerCard } from "./influence-improvements.mjs";
+import { applyDutyAction, captureDutyThemes, reconcileDutyReroll } from "./duty-improvements.mjs";
 import { applySkillBookkeeping, captureSkillMistakes } from "./skill-improvements.mjs";
 import { applyPersonalityAction, invokedThemeSources } from "./personality-improvements.mjs";
 import { applyTrustInLegacy, invokedLegacyTags } from "./people-improvements.mjs";
@@ -6,6 +17,7 @@ import { applyLessonsLearned, applyVividMemory, promptVividMemoryForMessage, reg
 import { applyCatchMeWhenIFall, registerDevotionSocket } from "./devotion-improvements.mjs";
 import { installHelpRollState, captureHelpBookkeeping, applyHelpBookkeeping } from "./help-bookkeeping.mjs";
 import { applyLuckyBastard, applyVirtuoso } from "./lucky-bastard.mjs";
+import { applyMonstrosityOperation, configureMonstrosityOperations, captureMonstrosityThemes, applySurgeConsequences } from "./monstrosity-improvements.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const SYSTEM_ID = "mist-engine-fvtt";
 const RECORDS = "singleUseTagRecords";
@@ -28,21 +40,14 @@ const spent = state => (state.entries ?? []).reduce((total, entry) => total + en
 export const remainingPower = state => Math.max(0, state.total - spent(state));
 const authorId = message => message.author?.id ?? message.user?.id;
 const wasInvoked = (actorUuid, id) => [...game.messages].some(message =>
-  message.getFlag(MODULE_ID, "rollContext")?.singleUse?.some(use => use.actorUuid === actorUuid && use.id === id));
+  !message.getFlag(MODULE_ID, "foreseen") && message.getFlag(MODULE_ID, "rollContext")?.singleUse?.some(use => use.actorUuid === actorUuid && use.id === id));
 
 // Token actors include synthetic actors used by unlinked NPC/Challenge tokens.
 export function sceneTagRecipients(scene, user = game.user) {
-  const actors = new Map();
-  for (const token of scene?.tokens?.contents ?? []) {
-    const actor = token.actor;
-    if (!actor || (!user.isGM && token.hidden) || !["character", "litm-character", "litm-npc"].includes(actor.type)
-        || !Array.isArray(actor.system.floatingTagsAndStatuses)) continue;
-    actors.set(actor.uuid, actor);
-  }
-  return [...actors.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return sceneTagRecipientsShared(scene, user);
 }
 
-function rollScene(message) {
+export function rollScene(message) {
   const id = message.getFlag(MODULE_ID, "rollContext")?.sceneId ?? message.speaker.scene
     ?? globalThis.canvas?.scene?.id ?? game.scenes?.active?.id;
   return game.scenes?.get(id);
@@ -139,7 +144,7 @@ async function applySpend(payload, user) {
   const message = await fromUuid(payload.messageUuid);
   if (!message || !(user?.isGM || authorId(message) === user?.id)) throw new Error("You cannot change this roll's spending.");
   const state = clone(message.getFlag(SYSTEM_ID, "detailedSpend"));
-  if (!state || state.consequenceResult < 0) throw new Error("Only successful Detailed rolls can spend Power.");
+  if (!canSpendInfluencePower(state)) throw new Error("This Detailed roll has no Power to spend.");
   state.entries ??= [];
   let actor = ChatMessage.getSpeakerActor(message.speaker);
   // The author can direct their effect to another visible character through
@@ -183,7 +188,7 @@ async function applySpend(payload, user) {
     const option = spendOptions.find(option => option.id === payload.optionId);
     if (!option || option.cost > remainingPower(state)) throw new Error("There is not enough Power remaining.");
     if (option.id === "singleUse") {
-      if (remainingPower(state) !== 1) throw new Error("Create a single-use tag only when exactly 1 Power remains.");
+      if (remainingPower(state) !== 1 && !followMeEnabled(message)) throw new Error("Create a single-use tag only when exactly 1 Power remains, or use Follow Me!.");
       const name = String(payload.name ?? "").trim();
       if (!name || name.length > 200) throw new Error("Enter a tag name of 1–200 characters.");
       const scene = rollScene(message);
@@ -238,7 +243,7 @@ async function applySpend(payload, user) {
     }
     throw error;
   }
-  return true;
+  return payload.action === "spend" && payload.optionId === "discover" ? { discoveredEntryId: state.entries.at(-1)?.id } : true;
 }
 
 async function applyConsumption(payload, user) {
@@ -254,14 +259,37 @@ async function applyConsumption(payload, user) {
     if (record.state !== "consumed") await updateActorRecord(actor, use.id, "consumed", { messageUuid: message.uuid });
   }
   await applyHelpBookkeeping(message, context);
+  await applySurgeConsequences(message, context);
   await applySkillBookkeeping(message, context);
+  await reconcileDutyReroll(message);
+  await completeForetold(message, user);
+  await finalizeForeseeJournal(message);
   await message.update({ [`flags.${MODULE_ID}.singleUseCleanupError`]: false, [`flags.${MODULE_ID}.singleUseCleanupComplete`]: true });
   return true;
 }
 
-export function runSingleUseOperation(payload, senderId = game.user.id) {
-  const operation = operationQueue.then(() => {
-    const user = game.users.get(senderId);
+async function executeSingleUseOperation(payload, user) {
+    if (payload.action === "masteryForesee") {
+      const message = await fromUuid(payload.messageUuid);
+      await executions.get(message?.getFlag(MODULE_ID, "rollContext")?.id)?.done;
+      if (!message?.getFlag(MODULE_ID, "singleUseCleanupComplete")) await applyConsumption(payload, user);
+      return applyForeseeOutcome(payload, user);
+    }
+    if (payload.action === "monstrosity" && payload.kind === "trace") return applyMonstrosityOperation(payload, user);
+    if (payload.action === "secondWind") return applySecondWind(payload, user);
+    if (payload.action === "dominionManual") return applyDominionManual(payload, user);
+    if (payload.action === "destiny") return applyDestinyOperation(payload, user);
+    if (payload.action === "uncannyManual") return applyUncannyManual(payload, user);
+    if (["monstrosity", "dutyImprovement", "influenceImprovement", "appliedExpertise", "prodigiousImprovement", "signatureMove", "repelWitchery"].includes(payload.action)) {
+      const message = await fromUuid(payload.messageUuid);
+      await executions.get(message?.getFlag(MODULE_ID, "rollContext")?.id)?.done;
+      if (payload.action === "monstrosity") return applyMonstrosityOperation(payload, user);
+      if (payload.action === "repelWitchery") return applyRepelWitchery(payload, user);
+      if (payload.action === "signatureMove") return applySignatureMove(payload, user);
+      if (payload.action === "prodigiousImprovement") return applyProdigiousAction(payload, user, renderNativeCard);
+      if (payload.action === "appliedExpertise") return applyAppliedExpertise(payload, user);
+      return payload.action === "dutyImprovement" ? applyDutyAction(payload, user, renderNativeCard) : applyInfluenceAction(payload, user, renderNativeCard);
+    }
     if (payload.action === "refreshUsage") return applyUsageRefresh(payload, user);
     if (payload.action === "deftRemedy") return applyLessonsLearned({ ...payload, feature: "deftRemedy" }, user, renderNativeCard);
     if (payload.action === "lessonsLearned") return applyLessonsLearned(payload, user, renderNativeCard);
@@ -272,6 +300,16 @@ export function runSingleUseOperation(payload, senderId = game.user.id) {
     if (payload.action === "luckyBastard") return applyLuckyBastard(payload, user, renderNativeCard);
     if (payload.action === "virtuoso") return applyVirtuoso(payload, user, renderNativeCard);
     return payload.action === "consume" ? applyConsumption(payload, user) : applySpend(payload, user);
+}
+export function runSingleUseOperation(payload, senderId = game.user.id) {
+  const operation = operationQueue.then(async () => {
+    const user = game.users.get(senderId), message = payload.messageUuid ? await fromUuid(payload.messageUuid) : null;
+    if (message?.getFlag(MODULE_ID, "foreseen") && payload.action !== "masteryForesee") {
+      if (payload.action === "consume") return true;
+      throw new Error("This action was only a prediction and can no longer be changed.");
+    }
+    const callback = () => executeSingleUseOperation(payload, user);
+    return message && payload.action !== "masteryForesee" ? recordForeseeOperation(message, payload, callback) : callback();
   });
   operationQueue = operation.catch(() => {});
   return operation;
@@ -279,13 +317,35 @@ export function runSingleUseOperation(payload, senderId = game.user.id) {
 
 async function dispatch(payload) {
   const gm = game.users.activeGM;
+  let result;
   if (gm && gm.id !== game.user.id) {
     if (!socket) throw new Error("Socketlib is not ready. Reload the client and try again.");
-    return socket.executeAsUser("singleUseOperation", gm.id, payload);
+    result = await socket.executeAsUser("singleUseOperation", gm.id, payload);
+  } else result = await runSingleUseOperation(payload);
+  // Prompt on the spending client's UI, after releasing the serialized write
+  // queue; creating the free tag can then safely use that same queue.
+  if (payload.action === "spend" && payload.optionId === "discover" && result?.discoveredEntryId) {
+    await promptAppliedExpertise(await fromUuid(payload.messageUuid), useAppliedExpertise, { discoveryId: result.discoveredEntryId });
   }
-  return runSingleUseOperation(payload);
+  return result;
 }
 
+configureMonstrosityOperations(payload => dispatch({ ...payload, action: "monstrosity" }));
+export const useMonstrosityAction = payload => dispatch({ ...payload, action: "monstrosity" });
+configureForeseeOperation(payload => dispatch({ ...payload, action: "masteryForesee" }));
+export const useForeseeOutcome = payload => dispatch({ ...payload, action: "masteryForesee" });
+configureSecondWind(payload => dispatch({ ...payload, action: "secondWind" }));
+configureDominionUsage(payload => dispatch({ ...payload, action: "dominionManual" }));
+configureDestinyOperations(payload => dispatch({ ...payload, action: "destiny" }));
+export const useNotHowItEnds = payload => dispatch({ ...payload, action: "destiny", kind: "avoid" });
+configureUncannyUsage(payload => dispatch({ ...payload, action: "uncannyManual" }));
+export const useRepelWitchery = payload => dispatch({ ...payload, action: "repelWitchery" });
+export const useSignatureMove = payload => dispatch({ ...payload, action: "signatureMove" });
+export const useProdigiousAction = payload => dispatch({ ...payload, action: "prodigiousImprovement" });
+export const useAppliedExpertise = payload => dispatch({ ...payload, action: "appliedExpertise" });
+
+export const useInfluenceAction = payload => dispatch({ ...payload, action: "influenceImprovement" });
+export const useDutyAction = payload => dispatch({ ...payload, action: "dutyImprovement" });
 export const useLuckyBastard = payload => dispatch({ action: "luckyBastard", messageUuid: payload.messageUuid });
 configureUsageRefresh(period => dispatch({ action: "refreshUsage", period }));
 
@@ -309,8 +369,10 @@ export function bindSpending(message, root) {
   if (pushLuck) pushLuck.disabled = !editable;
   const singleUse = root.querySelector('[data-spend-option="singleUse"]');
   if (singleUse) {
-    singleUse.disabled = !editable || remainingPower(state) !== 1;
-    singleUse.dataset.tooltip = "Create a single-use story tag with your final 1 Power. Removed when invoked; cannot be burned.";
+    const follow = followMeEnabled(message);
+    singleUse.disabled = !editable || !canSpendInfluencePower(state) || (follow ? remainingPower(state) < 1 : remainingPower(state) !== 1);
+    singleUse.dataset.tooltip = follow ? "Follow Me!: create a single-use story tag for 1 Power. You can repeat this while Power remains."
+      : "Create a single-use story tag with your final 1 Power. Removed when invoked; cannot be burned.";
   }
   for (const undo of root.querySelectorAll("[data-spend-undo]")) {
     const entry = state.entries?.[Number(undo.dataset.spendUndo)];
@@ -349,7 +411,7 @@ export function bindSpending(message, root) {
           if (!recipients.length && !scene) throw new Error("No character or scene is available to receive the tag.");
           try { result = await foundry.applications.api.DialogV2.prompt({
             window: { title: "Create Single-Use Story Tag" }, classes: ["litm-qol-system-dialog"],
-            content: `<p>Spend your final 1 Power to create a story tag on this scene or a Hero, NPC, or Challenge in it. It is removed after its first use and cannot be burned.</p><label>Tag name<input type="text" name="tagName" maxlength="200" autofocus></label>${recipientField}`,
+            content: `<p>${followMeEnabled(message) ? "Spend 1 Power" : "Spend your final 1 Power"} to create a story tag on this scene or a Hero or Challenge in it. It is removed after its first use and cannot be burned.</p><label>Tag name<input type="text" name="tagName" maxlength="200" autofocus></label>${recipientField}`,
             ok: { label: "Create and Spend 1 Power", callback: (_event, button) => ({ name: button.form.elements.tagName.value, destination: button.form.elements.destination.value }) }, rejectClose: false
           }); } catch { return; }
           if (!String(result?.name ?? "").trim() || !result.destination) return;
@@ -372,7 +434,7 @@ export function bindSpending(message, root) {
 }
 
 export function installSingleUseRolls(DiceRollApp, options, renderer) {
-  spendOptions = options; renderNativeCard = renderer;
+  spendOptions = options; renderNativeCard = state => renderInfluencePowerCard(state, renderer, options);
   const proto = DiceRollApp.prototype;
   if (proto[PATCHED]) return;
   installHelpRollState(DiceRollApp);
@@ -432,7 +494,7 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
         return `${html}<span hidden class="litm-qol-roll-context" data-context="${foundry.utils.escapeHTML(JSON.stringify(context.data))}"></span>`;
       };
     }
-    if (context?.data.rehearsed) return;
+    if (context?.data.rehearsed || context?.data.foretold) return;
     return originalShow.call(this, promises, roll);
   };
   const originalExecute = proto.executeRoll;
@@ -464,9 +526,10 @@ export function installSingleUseRolls(DiceRollApp, options, renderer) {
     let help;
     try { help = captureHelpBookkeeping(this, applied, values); }
     catch (error) { ui.notifications.warn(error.message); return; }
+    const foresee = await captureForeseeBefore(this, applied, help, [...uses.values()]);
     let finish;
-    const context = { data: { id: foundry.utils.randomID(), rollType: this.rollType, actorId: this.actor.id,
-      sceneId: game.items.get(this.selectedStoryTags?.[0]?.sceneDataItemId)?.system.sceneKey ?? globalThis.canvas?.scene?.id ?? game.scenes?.active?.id ?? null, singleUse: [...uses.values()], skillMistakes: captureSkillMistakes(this, applied), rehearsed: clone(this._litmQolRehearsedExecuting ?? null), themeSources: invokedThemeSources(this, applied), legacyTags: invokedLegacyTags(this, applied), help, group: clone(this._litmQolGroupRoll ?? null) },
+    const context = { data: { id: foundry.utils.randomID(), rollType: this.rollType, actorId: this.actor.id, actorUuid: this.actor.uuid,
+      sceneId: game.items.get(this.selectedStoryTags?.[0]?.sceneDataItemId)?.system.sceneKey ?? globalThis.canvas?.scene?.id ?? game.scenes?.active?.id ?? null, singleUse: [...uses.values()], foresee, foretold: clone(this._litmQolForetoldExecuting ?? null), monstrosityThemes: captureMonstrosityThemes(this, applied), destinyThemes: captureDestinyThemes(this), uncannyThemes: captureUncannyThemes(this, applied), relicSignatures: captureRelicSignatures(this, applied), prodigiousThemes: captureProdigiousThemes(this, applied), knowledgeThemes: captureKnowledgeThemes(this, applied), influenceThemes: captureInfluenceThemes(this, applied), dutyThemes: captureDutyThemes(this, applied), skillMistakes: captureSkillMistakes(this, applied), rehearsed: clone(this._litmQolRehearsedExecuting ?? null), themeSources: invokedThemeSources(this, applied), legacyTags: invokedLegacyTags(this, applied), help, group: clone(this._litmQolGroupRoll ?? null) },
       done: new Promise(resolve => { finish = resolve; }) };
     this._litmQolRollContext = context;
     executions.set(context.data.id, context);
@@ -502,7 +565,7 @@ Hooks.on("preCreateChatMessage", (message, data) => {
 
 async function consumeForMessage(message) {
   const context = message.getFlag(MODULE_ID, "rollContext");
-  if (!context || !(context.singleUse?.length || context.help?.burns?.length || context.help?.weaknesses?.length || context.help?.relationships?.length || context.help?.fellowshipTags?.length || context.help?.adversity?.length || context.help?.vividMemory?.length || context.skillMistakes?.length)) return;
+  if (!context || !(context.singleUse?.length || context.help?.burns?.length || context.help?.weaknesses?.length || context.help?.relationships?.length || context.help?.fellowshipTags?.length || context.help?.adversity?.length || context.help?.vividMemory?.length || context.skillMistakes?.length || context.dutyThemes?.length || context.foretold || context.foresee)) return;
   try {
     await executions.get(context.id)?.done;
     await dispatch({ action: "consume", messageUuid: message.uuid });

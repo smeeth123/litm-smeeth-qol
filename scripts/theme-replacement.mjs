@@ -1,3 +1,4 @@
+import { chooseLifelongImprovement, retainLifelongImprovement } from "./lifelong-insight.mjs";
 import { themeTitle } from "./theme-title.mjs";
 import { usesDiligentTrack } from "./diligent-drudge.mjs";
 import { chooseThemeDocument } from "./theme-browser.mjs";
@@ -381,6 +382,7 @@ async function confirmReplacement(theme, prepared, promise) {
           <li>Title tag: <strong>${foundry.utils.escapeHTML(title)}</strong></li>
           <li>Quest: ${foundry.utils.escapeHTML(prepared.system.quest)}</li>
           <li>Weakness: <strong>${foundry.utils.escapeHTML(weakness)}</strong></li>
+          ${prepared.flags?.[MODULE_ID]?.lifelongInsight ? `<li>Kept improvement: <strong>${foundry.utils.escapeHTML(prepared.flags[MODULE_ID].lifelongInsight.name)}</strong></li>` : ""}
           <li>Promise earned: <strong>${promise.total}</strong>${promise.overflowGain ? ` (${promise.overflowAfter} will be stored for after fulfillment)` : ""}</li>
         </ul>
       </div>`,
@@ -437,7 +439,8 @@ async function commitReplacement(actor, oldTheme, prepared, promise, draft) {
       name: prepared.name,
       system: prepared.system,
       [`flags.${MODULE_ID}.${NASCENT_FLAG}`]: true,
-      [`flags.${MODULE_ID}.${DRAFT_FLAG}`]: false
+      [`flags.${MODULE_ID}.${DRAFT_FLAG}`]: false,
+      ...Object.fromEntries(Object.entries(prepared.flags?.[MODULE_ID] ?? {}).map(([key, value]) => [`flags.${MODULE_ID}.${key}`, value]))
     });
   } else {
     const [created] = await actor.createEmbeddedDocuments("Item", [prepared]);
@@ -491,6 +494,9 @@ export async function runReplaceTheme(actor, oldTheme, { allowWithoutAbandon = f
       }
 
       if (!prepared) return;
+      const retained = await chooseLifelongImprovement(oldTheme);
+      if (!retained) { await cleanupDraft(actor, draft); return; }
+      if (retained.keep && !await retainLifelongImprovement(oldTheme, prepared, retained)) { await cleanupDraft(actor, draft); return; }
       const confirmation = await confirmReplacement(oldTheme, prepared, promise);
       if (isCancel(confirmation)) {
         await cleanupDraft(actor, draft);

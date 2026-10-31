@@ -19,9 +19,15 @@ export function cleanResultCard(message, root) {
     const summary = document.createElement("p");
     summary.className = "litm-qol-outcome-summary";
     summary.textContent = type === "reaction"
-      ? outcome < 0 ? "Suffer the Consequences as-is." : outcome === 0 ? "Spend Power to lessen the Consequences." : "Spend Power to lessen Consequences or gain an appropriate Effect."
+      ? outcome < 0 && message.getFlag(MODULE_ID, "repelWitchery") ? "Spend Power to lessen magical Consequences."
+        : outcome < 0 ? "Suffer the Consequences as-is." : outcome === 0 ? "Spend Power to lessen the Consequences." : "Spend Power to lessen Consequences or gain an appropriate Effect."
       : spending?.pushYourLuck ? "Your action succeeds, with Consequences from Push Your Luck."
         : outcome < 0 ? "The Narrator introduces a Consequence." : outcome === 0 ? "Your action succeeds, with a Consequence." : "Your action succeeds without Consequences.";
+    if (!context?.group && Object.keys(message.getFlag(MODULE_ID, "notHowItEnds") ?? {}).length) {
+      summary.textContent = type === "reaction" ? "Not How It Ends avoids the Consequences."
+        : outcome < 0 ? "The action does not succeed. Not How It Ends avoids the Consequences."
+          : "Your action succeeds. Not How It Ends avoids the Consequences.";
+    }
     if (context?.group) summary.textContent = summary.textContent
       .replace("Your action succeeds", "The group succeeds")
       .replace("Your action", "The group’s action");

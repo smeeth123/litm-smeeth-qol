@@ -1,3 +1,13 @@
+import { renderForeseeActions } from "./foresee-outcome.mjs";
+import "./calculated-sacrifice.mjs";
+import { reducedStatus } from "./status-reduction.mjs";
+import { renderDestinyActions } from "./destiny-improvements.mjs";
+import { renderUncannyActions } from "./uncanny-improvements.mjs";
+import { renderRelicActions } from "./relic-improvements.mjs";
+import { renderProdigiousActions } from "./prodigious-improvements.mjs";
+import { renderKnowledgeActions } from "./knowledge-improvements.mjs";
+import { renderInfluenceActions } from "./influence-improvements.mjs";
+import { renderDutyActions } from "./duty-improvements.mjs";
 import { renderPersonalityActions } from "./personality-improvements.mjs";
 import { renderTrustInLegacy, renderLegacyConfiguration, configureLegacyDetails, applyLegacyDetails } from "./people-improvements.mjs";
 import { themeTitle } from "./theme-title.mjs";
@@ -8,6 +18,7 @@ import { improveResetUpdate, FUMBLING_OVERFLOW } from "./fumbling-master.mjs";
 import { renderQuintessenceUsage } from "./quintessence-usage.mjs";
 import { renderLuckyBastard, renderVirtuoso } from "./lucky-bastard.mjs";
 import { diligentImprovementUpdate, DILIGENT_FLAG, usesDiligentTrack, canImproveTheme, pendingDiligentImprovements, renderDiligentTracks } from "./diligent-drudge.mjs";
+import { renderMonstrosityActions } from "./monstrosity-improvements.mjs";
 const diligentWorkflows = new Set();
 import "./tropes.mjs";
 import { importSystemModule } from "./system-imports.mjs";
@@ -16,7 +27,7 @@ import "./sheet-scroll.mjs";
 import "./fellowship-sync.mjs";
 import { clearCooperativeRoll } from "./cooperative-rolls.mjs";
 import { cleanResultCard } from "./chat-cards.mjs";
-import { decorateSingleUseTags, useLuckyBastard, useVirtuoso, useCatchMeWhenIFall, useTrustInLegacy, usePersonalityAction, useLessonsLearned, useVividMemory } from "./single-use-tags.mjs";
+import { decorateSingleUseTags, useMonstrosityAction, useForeseeOutcome, useNotHowItEnds, useRepelWitchery, useSignatureMove, useProdigiousAction, useAppliedExpertise, useInfluenceAction, useDutyAction, useLuckyBastard, useVirtuoso, useCatchMeWhenIFall, useTrustInLegacy, usePersonalityAction, useLessonsLearned, useVividMemory } from "./single-use-tags.mjs";
 import { decorateTradeCard, isNativeSacrificeMessage, nativeSacrifice, renderIntegratedTradePower } from "./roll-integration.mjs";
 import { awardPromise } from "./promise-manager.mjs";
 import "./moment-of-fulfillment.mjs";
@@ -90,12 +101,22 @@ async function onChatCardRendered(message, html) {
   if (!root) return;
 
   cleanResultCard(message, root);
+  if (message.getFlag(MODULE_ID, "foreseen")) { renderForeseeActions(message, root, useForeseeOutcome); return; }
   renderLuckyBastard(message, root, useLuckyBastard);
   renderVirtuoso(message, root, useVirtuoso);
   renderCatchMeWhenIFall(message, root, useCatchMeWhenIFall);
   renderTrustInLegacy(message, root, useTrustInLegacy);
   renderPersonalityActions(message, root, usePersonalityAction);
   renderPastActions(message, root, useLessonsLearned, useVividMemory);
+  renderDutyActions(message, root, useDutyAction);
+  renderInfluenceActions(message, root, useInfluenceAction);
+  renderKnowledgeActions(message, root, useAppliedExpertise);
+  renderProdigiousActions(message, root, useProdigiousAction);
+  renderRelicActions(message, root, useSignatureMove);
+  renderUncannyActions(message, root, useRepelWitchery);
+  renderMonstrosityActions(message, root, useMonstrosityAction);
+  renderDestinyActions(message, root, useNotHowItEnds);
+  renderForeseeActions(message, root, useForeseeOutcome);
   decorateTradeCard(message, root);
   renderNativeSacrificeActions(message, root);
 
@@ -1278,6 +1299,7 @@ function renderNativeSacrificeActions(message, root) {
   const saved = message.getFlag?.(MODULE_ID, "nativeSacrifice");
   const sacrifice = saved ? { ...saved, result: root.querySelector(".consequence-result-positive, .consequence-result-neutral, .consequence-result-negative") } : nativeSacrifice(root);
   if (!sacrifice || root.querySelector(".litm-qol-sacrifice-card-action")) return;
+  if (message.getFlag?.(MODULE_ID, "calculatedSacrifice")?.success) return;
   const { level, lessened, result } = sacrifice;
   if (!result) return;
   const section = document.createElement("div");
@@ -1407,23 +1429,7 @@ async function reduceFloatingStatus(actor, statusIndex) {
   amount = Math.min(amount, 6);
 
   const updated = foundry.utils.deepClone(statuses);
-  const oldMarkings = Array.isArray(status.markings)
-    ? [...status.markings].slice(0, 6)
-    : Array(6).fill(false);
-  while (oldMarkings.length < 6) oldMarkings.push(false);
-
-  const newMarkings = Array(6).fill(false);
-  for (let index = 0; index < oldMarkings.length; index++) {
-    if (!oldMarkings[index]) continue;
-    const shiftedIndex = index - amount;
-    if (shiftedIndex >= 0) newMarkings[shiftedIndex] = true;
-  }
-
-  updated[statusIndex] = {
-    ...updated[statusIndex],
-    markings: newMarkings,
-    selected: false
-  };
+  updated[statusIndex] = reducedStatus(updated[statusIndex], amount);
 
   await actor.update({ "system.floatingTagsAndStatuses": updated });
 }

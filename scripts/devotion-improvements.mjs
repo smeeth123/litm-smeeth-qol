@@ -102,7 +102,8 @@ export function registerDevotionSocket(api) {
     return promptUnwavering(payload);
   });
 }
-export async function protectUnwavering(theme, changes) {
+export async function protectUnwavering(theme, changes, options = {}) {
+  if (options.litmQolRequiredScratch) return;
   if (!["character", "litm-character"].includes(theme?.parent?.type) || !has(theme, "Unwavering") || specialUsed(theme, "unwavering")) return;
   const tags = [];
   for (const field of ["powertags", "weaknesstags"]) {
@@ -133,7 +134,7 @@ export function installUnwavering(ItemClass) {
   proto._preUpdate = async function(changes, options, user) {
     const result = await original?.call(this, changes, options, user);
     if (result === false) return false;
-    await protectUnwavering(this, changes);
+    await protectUnwavering(this, changes, options);
     return result;
   };
   Object.defineProperty(proto, key, { value: true });

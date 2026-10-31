@@ -124,7 +124,7 @@ export function captureHelpBookkeeping(app, applied, values = {}) {
   if (burns.length && applied.filter(tag => tag.toBurn).length > 1) {
     throw new Error("Only one tag may be burned in a Group Action. Clear the extra burn before rolling.");
   }
-  return { burns, weaknesses: [...weaknesses.values()], relationships, fellowshipTags: [...fellowshipTags.values()], adversity: clone([...(values._litmQolAdversitySelections ?? []).filter(entry => entry.feature !== "vivid-memory"), ...(values._litmQolTraitSelections ?? [])]), vividMemory: clone((values._litmQolAdversitySelections ?? []).filter(entry => entry.feature === "vivid-memory")) };
+  return { burns, weaknesses: [...weaknesses.values()], relationships, fellowshipTags: [...fellowshipTags.values()], adversity: clone([...(values._litmQolAdversitySelections ?? []).filter(entry => !["vivid-memory", "inventive-stroke"].includes(entry.feature)), ...(values._litmQolTraitSelections ?? [])]), vividMemory: clone((values._litmQolAdversitySelections ?? []).filter(entry => entry.feature === "vivid-memory")) };
 }
 
 // Run through the same serialized GM operation as single-use cleanup. Store
@@ -148,6 +148,7 @@ export async function applyHelpBookkeeping(message, context) {
       requireSource(actor, entry);
       if (kind === "adversity") {
         change[`flags.${MODULE_ID}.${SPECIAL_USES}.${entry.feature ?? "strength-from-adversity"}`] = true;
+        if (entry.feature === "reckless-discharge") change["system.abandon"] = Math.min(3, Math.max(0, Number(doc.system.abandon) || 0) + 1);
       } else if (kind === "scratch") {
         const fellowships = clone(actor.system.fellowships);
         Object.assign(fellowships[entry.index], { scratched: true, selected: false });

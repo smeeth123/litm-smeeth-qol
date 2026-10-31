@@ -37,15 +37,16 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
 
         const dicePromises = [];
 
-        const rehearsed = this._litmQolRehearsedExecuting;
-        let rollFormula = rehearsed ? "7" : "2d6";
-        if (numPositiveTags > 0) rollFormula += ` + ${numPositiveTags}`;
-        if (numNegativeTags > 0) rollFormula += ` - ${numNegativeTags}`;
+        const foretold = this._litmQolForetoldExecuting;
+        const rehearsed = !foretold && this._litmQolRehearsedExecuting;
+        let rollFormula = foretold || rehearsed ? "7" : "2d6";
+        if (!foretold && numPositiveTags > 0) rollFormula += ` + ${numPositiveTags}`;
+        if (!foretold && numNegativeTags > 0) rollFormula += ` - ${numNegativeTags}`;
 
         let numPowerTags = parseInt(numPositiveTags) - parseInt(numNegativeTags);
 
         if (mightScale != 0) {
-            rollFormula += ` + ${mightScale}`;
+            if (!foretold) rollFormula += ` + ${mightScale}`;
             numPowerTags += mightScale;
         }
 
@@ -59,13 +60,14 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
         this.addShowDicePromise(dicePromises, diceRoll);
         await Promise.all(dicePromises);
 
-        let diceResults = rehearsed ? [] : [...diceRoll.terms[0].results].map(r => r.result);
+        let diceResults = foretold || rehearsed ? [] : [...diceRoll.terms[0].results].map(r => r.result);
 
         let isCritical = (diceResults[0] === 6 && diceResults[1] === 6);
         const doubleOnes = diceResults[0] === 1 && diceResults[1] === 1;
         const isFumble = doubleOnes && !hasBeyondLuck(this.actor);
 
         let diceRollHTML = await diceRoll.render();
+        if (foretold) diceRollHTML += '<p class="litm-qol-quintessence-note">As Foretold: Success with Consequences; no dice rolled.</p>';
         if (rehearsed) diceRollHTML += '<p class="litm-qol-quintessence-note">Rehearsed Technique: dice treated as 7 before adding Power.</p>';
         if (doubleOnes && !isFumble) diceRollHTML += '<p class="litm-qol-quintessence-note">Beyond Luck: double ones resolve normally.</p>';
 
@@ -81,6 +83,7 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
         // always Consequences without Success — regardless of Power!!!!
         if (isCritical) consequenceResult = 1;
         if (isFumble) consequenceResult = -1;
+        if (foretold) consequenceResult = 0;
 
         let positiveTags = [...tagsAndStatusForRoll.filter(t => t.positive), ...helpingContribs];
         let negativeTags = tagsAndStatusForRoll.filter(t => !t.positive);
@@ -106,7 +109,7 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
                 `systems/mist-engine-fvtt/templates/chat/${this.rollType}-result.hbs`,
                 chatVars
             );
-            ChatMessage.create({ content: html, speaker });
+            await ChatMessage.create({ content: html, speaker });
         }
 
         // Preserve 14.5.5 native helping relationship cleanup on Beyond Luck rolls.
@@ -128,7 +131,7 @@ export function installQuintessenceAutomation(DiceRollApp, createDetailedMessage
     }
 
   proto.executeRoll = function(values) {
-    return (hasBeyondLuck(this.actor) || this._litmQolRehearsedExecuting)
+    return (hasBeyondLuck(this.actor) || this._litmQolRehearsedExecuting || this._litmQolForetoldExecuting)
       ? executeBeyondLuck.call(this, values)
       : original.call(this, values);
   };

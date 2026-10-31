@@ -301,6 +301,17 @@ Adds usage trackers and roll automation for the following Special Improvements:
 - Skill or Trade: Deft Remedy, Learn from My Mistakes, Rehearsed Technique.
 - Trait: Innate Sense, Made for This, Moment to Shine, Pull Through.
 
+- Duty: Dutiful Anticipation, Grim Determination, Painful Lessons, Driven by Shame, Unstoppable.
+- Influence: Follow Me!, Long Reach, Overextend, Read Between the Lines.
+- Knowledge: A Known Expert, Applied Expertise, Inventive Stroke.
+- Prodigious Ability: Create an Opening, Discerning Eye, Practiced Maneuver.
+- Relic: Momentary Bearer, Reckless Discharge, Sentinel, Signature Move.
+- Uncanny Being: Expressive Form, Repel Witchery, Self-Discovery, Shifting Form, Strive to Belong.
+- Destiny: As Foretold, Meet It Head-On, Not How It Ends, Pull of Destiny.
+- Dominion: Good Help Is Hard to Find, My Word Is Absolute, Regalia, Untarnished Glory.
+- Mastery: Calculated Sacrifice, Foresee the Outcome, Lifelong Insight, Second Wind.
+- Monstrosity: Display of Force, Invulnerability, Magical Trace, Surge of Power.
+
 ### Refresh Uses
 
 The Narrator can use Mist Engine Tools → Refresh Uses to reset scene or session uses for player-owned Heroes and their Fellowship Themecards.

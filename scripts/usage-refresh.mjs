@@ -1,3 +1,4 @@
+import { pruneForetoldPending } from "./destiny-improvements.mjs";
 import { SPECIAL_USES, specialImprovementPeriod } from "./circumstance-improvements.mjs";
 import { isTrackedUsageQuintessence } from "./quintessence-usage.mjs";
 const MODULE_ID = "litm-smeeth-qol";
@@ -44,6 +45,7 @@ export function usageRefreshChanges(doc, period) {
         if (doc.getFlag(MODULE_ID, flag) != null) changes[`flags.${MODULE_ID}.-=${flag}`] = null;
       }
     }
+    if (doc.getFlag(MODULE_ID, "foretoldGrant")) changes[`flags.${MODULE_ID}.-=foretoldGrant`] = null;
     for (const flag of ["catchMeWhenIFallMessage", "lessonsLearnedReroll", "deftRemedyReroll"]) {
       if (doc.getFlag(MODULE_ID, flag) != null) changes[`flags.${MODULE_ID}.-=${flag}`] = null;
     }
@@ -66,6 +68,7 @@ export async function applyUsageRefresh(payload, user) {
     try { await doc.update(changes); updated++; }
     catch (error) { failures.push(doc.name); console.error(`${MODULE_ID} | Could not refresh uses for ${doc.uuid}`, error); }
   }
+  if (period === "session") await pruneForetoldPending();
   if (failures.length) throw new Error(`Some uses could not be refreshed: ${failures.join(", ")}. Try again.`);
   return { period, actors: actors.length, updated };
 }

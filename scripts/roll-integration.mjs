@@ -1,3 +1,4 @@
+import { installDestinyRolls } from "./destiny-improvements.mjs";
 import { installTraitImprovements, renderTraitImprovements, traitMight } from "./trait-improvements.mjs";
 import { installRehearsedTechnique, renderRehearsedTechnique } from "./skill-improvements.mjs";
 import { installPersonalityBurns } from "./personality-improvements.mjs";
@@ -221,6 +222,7 @@ export function installTradePower(DiceRollApp, spendOptions, renderDetailedCard,
   installAdversity(DiceRollApp);
   installRehearsedTechnique(DiceRollApp);
   installTraitImprovements(DiceRollApp);
+  installDestinyRolls(DiceRollApp);
 }
 
 export function nativeSacrifice(root) {

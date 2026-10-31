@@ -1,3 +1,5 @@
+import { calculatedSacrificeTotal } from "./calculated-sacrifice.mjs";
+import { reconcileDutyReroll } from "./duty-improvements.mjs";
 import { applySkillBookkeeping } from "./skill-improvements.mjs";
 import { themeTitle } from "./theme-title.mjs";
 import { SPECIAL_USES, specialUsed } from "./circumstance-improvements.mjs";
@@ -17,7 +19,10 @@ const cards = new Map();
 let DiceRollApp, pastSocket;
 
 async function reconcileSkillReroll(message) {
-  try { await applySkillBookkeeping(message, message.getFlag(MODULE_ID, "rollContext")); }
+  try {
+    await applySkillBookkeeping(message, message.getFlag(MODULE_ID, "rollContext"));
+    await reconcileDutyReroll(message);
+  }
   catch (error) {
     await message.update({ [`flags.${MODULE_ID}.singleUseCleanupError`]: true }).catch(() => {});
     throw error;
@@ -72,16 +77,20 @@ export async function applyLessonsLearned(payload, user, renderer) {
   }
   const isCritical = reroll.dice.every(die => die === 6);
   const isFumble = reroll.dice.every(die => die === 1) && !(info.type !== "reaction" && hasQuintessence(actor, "Beyond Luck"));
-  let outcome = reroll.total >= 10 ? 1 : reroll.total >= 7 ? 0 : -1;
+  const calculated = info.sacrifice && message.getFlag(MODULE_ID, "calculatedSacrifice");
+  const treatedTotal = calculated ? calculatedSacrificeTotal(reroll.total) : reroll.total;
+  let outcome = treatedTotal >= 10 ? 1 : treatedTotal >= 7 ? 0 : -1;
   if (info.type !== "sacrifice") { if (isCritical) outcome = 1; if (isFumble) outcome = -1; }
   let content;
   if (state) {
     Object.assign(state, { diceRollHTML: reroll.html, consequenceResult: outcome, isCritical, isFumble });
     content = await renderer(state);
   } else if (info.type === "sacrifice") {
+    let sacrificeDice = reroll.html;
+    if (treatedTotal !== reroll.total) { const dice = rootFor(sacrificeDice); const total = dice.querySelector('.dice-total'); if (total) total.textContent = String(treatedTotal); sacrificeDice = dice.innerHTML; }
     const level = info.sacrifice.level, lessened = { grave: "scarring", scarring: "painful", painful: "none" }[level];
     content = await foundry.applications.handlebars.renderTemplate(`systems/${SYSTEM_ID}/templates/chat/sacrifice-result.hbs`, {
-      diceRollHTML: reroll.html, levelLabel: game.i18n.localize(`MIST_ENGINE.SACRIFICE.Levels.${level}`),
+      diceRollHTML: sacrificeDice, levelLabel: game.i18n.localize(`MIST_ENGINE.SACRIFICE.Levels.${level}`),
       lessenedLabel: game.i18n.localize(`MIST_ENGINE.SACRIFICE.Levels.${lessened}`), isMiracle: outcome === 1, isFate: outcome === 0, isInVain: outcome < 0 });
   } else {
     const old = rootFor(message.content), counter = old.querySelector(".power-counter");
@@ -99,13 +108,18 @@ export async function applyLessonsLearned(payload, user, renderer) {
     content = fresh.innerHTML;
   }
   const root = rootFor(content), note = document.createElement("p");
+  if (calculated && outcome >= 0) {
+    const result = root.querySelector('.consequence-result-positive');
+    if (result) { const heading = result.querySelector('.heading'); result.replaceChildren(...[heading].filter(Boolean)); const paid = document.createElement('p'); paid.textContent = 'The action succeeds. The theme already replaced pays the sacrifice; no additional theme replacement is required.'; result.append(paid); }
+  }
   note.textContent = `${config.name}: rerolled ${reroll.originalTotal} → ${reroll.total}. The new result stands.`;
   (root.querySelector(".roll-card") ?? root).append(note);
   const update = { content: root.innerHTML, [`flags.${MODULE_ID}.${feature}`]: { ...reroll, themeUuid: theme.uuid },
-    [`flags.${MODULE_ID}.-=luckyBastard`]: null, [`flags.${MODULE_ID}.-=virtuoso`]: null, [`flags.${MODULE_ID}.-=catchMeWhenIFall`]: null, [`flags.${MODULE_ID}.-=adaptablePersona`]: null, [`flags.${MODULE_ID}.-=trustInLegacy`]: null };
+    [`flags.${MODULE_ID}.-=luckyBastard`]: null, [`flags.${MODULE_ID}.-=virtuoso`]: null, [`flags.${MODULE_ID}.-=catchMeWhenIFall`]: null, [`flags.${MODULE_ID}.-=adaptablePersona`]: null, [`flags.${MODULE_ID}.-=trustInLegacy`]: null, [`flags.${MODULE_ID}.-=practicedManeuver`]: null };
   if (state) update[`flags.${SYSTEM_ID}.detailedSpend`] = state;
   if (info.context) update[`flags.${MODULE_ID}.rollContext`] = { ...clone(info.context), roll: { total: reroll.total, dice: reroll.dice } };
   if (info.sacrifice) update[`flags.${MODULE_ID}.nativeSacrifice`] = { ...info.sacrifice, lessened: outcome === 1 };
+  if (calculated) update[`flags.${MODULE_ID}.calculatedSacrifice`] = { ...calculated, originalTotal: reroll.total, total: treatedTotal, success: outcome >= 0 };
   await message.update(update);
   await reconcileSkillReroll(message);
   return true;
@@ -221,6 +235,7 @@ export function registerPastSocket(api) {
 }
 
 export async function protectNotLettingGo(theme, changes, options = {}) {
+  if (options.litmQolRequiredScratch) return;
   if (!["character", "litm-character"].includes(theme?.parent?.type) || !has(theme, "Not Letting Go")) return;
   const updates = changes["system.powertags"] ?? changes.system?.powertags;
   if (!Array.isArray(updates)) return;
