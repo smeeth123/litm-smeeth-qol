@@ -50,6 +50,10 @@ Undo removes an unused tag and refunds its allocation. Once a completed roll has
 
 Right-clicking a status adds a **Reduce Status** option. Entering a number shifts all active status marks left by that many tiers. Marks reduced below tier 1 disappear.
 
+### Challenge Tags on the Scene Overlay
+
+The Narrator can use the eye beside each Challenge tag or status in the Scene Tags dialog to reveal or hide it on players’ scene overlays. Entries start hidden, and visibility is saved separately for each token. Revealed entries update live; hidden tokens remain excluded from players’ overlays.
+
 ### Fellowship Tags
 
 Keeps native Fellowship Themecard syncing working after character sheets are closed and reopened, and handles deletion of the linked Themecard.
