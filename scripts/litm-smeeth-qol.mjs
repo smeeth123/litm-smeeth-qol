@@ -23,6 +23,7 @@ const diligentWorkflows = new Set();
 import "./tropes.mjs";
 import { importSystemModule } from "./system-imports.mjs";
 import "./chat-theme.mjs";
+import "./challenge-overlay.mjs";
 import "./sheet-scroll.mjs";
 import "./fellowship-sync.mjs";
 import { clearCooperativeRoll } from "./cooperative-rolls.mjs";

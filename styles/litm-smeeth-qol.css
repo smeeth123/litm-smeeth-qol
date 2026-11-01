@@ -1737,3 +1737,25 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
   text-underline-offset: 0.18em;
   cursor: help;
 }
+
+/* Challenge reveal controls use the native scene-tag palette. */
+.mist-engine.scene-app .litm-qol-challenge-visibility {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  min-height: 0;
+  margin: 0 0 0 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  vertical-align: middle;
+}
+.mist-engine.scene-app .litm-qol-challenge-visibility[aria-pressed="false"] { opacity: 0.55; }
+.mist-engine.scene-app .litm-qol-challenge-visibility:hover,
+.mist-engine.scene-app .litm-qol-challenge-visibility:focus-visible { opacity: 1; outline: 1px solid currentColor; }
+#litm-scene-tags-overlay .litm-qol-overlay-unrevealed { opacity: 0.55; }
