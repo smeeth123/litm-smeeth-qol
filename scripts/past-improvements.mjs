@@ -59,7 +59,7 @@ export async function applyLessonsLearned(payload, user, renderer) {
   const theme = actor && lessonsThemes(message, actor, feature).find(theme => theme.uuid === payload.themeUuid);
   if (!theme || !(user.isGM || actor.testUserPermission(user, "OWNER"))) throw new Error(`${config.name} is not available for this roll.`);
   const state = clone(message.getFlag(SYSTEM_ID, "detailedSpend"));
-  if (state?.entries?.length || state?.pushYourLuck) throw new Error("Undo this card’s Power spending and Push Your Luck before rerolling.");
+  if (state?.entries?.length || state?.pushYourLuck || message.getFlag(MODULE_ID, "reactionSpend")?.entries?.length) throw new Error("Undo this card’s Power spending and Push Your Luck before rerolling.");
   const saved = theme.getFlag(MODULE_ID, config.saved);
   let reroll;
   if (saved?.messageUuid === message.uuid) reroll = saved;

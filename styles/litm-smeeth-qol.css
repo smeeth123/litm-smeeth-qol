@@ -1759,3 +1759,11 @@ body.litm-qol-dark-chat .chat-message .roll-card .consequence-container {
 .mist-engine.scene-app .litm-qol-challenge-visibility:hover,
 .mist-engine.scene-app .litm-qol-challenge-visibility:focus-visible { opacity: 1; outline: 1px solid currentColor; }
 #litm-scene-tags-overlay .litm-qol-overlay-unrevealed { opacity: 0.55; }
+
+.litm-qol-reaction-spend .litm-qol-reaction-effect-divider {
+  flex: 0 0 100%;
+  height: 0;
+  margin: 0.25rem 0;
+  border-top: 1px solid currentColor;
+  opacity: 0.3;
+}

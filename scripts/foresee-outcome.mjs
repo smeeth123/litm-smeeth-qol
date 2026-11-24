@@ -40,6 +40,10 @@ async function documentsFor(context, payload = {}) {
   const docs = new Map(), actors = new Map();
   const addActor = actor => { if(actor){actors.set(actor.uuid,actor);docs.set(actor.uuid,actor);for(const item of actor.items??[])if(['themebook','backpack','rote','quintessence'].includes(item.type))docs.set(item.uuid,item);} };
   for (const uuid of [context.actorUuid,payload.recipientActorUuid]) if(uuid)addActor(await fromUuid(uuid));
+  if (payload.effect || payload.action === 'retryEffect' || payload.action === 'undo') {
+    const scene = game.scenes?.get(context.sceneId);
+    for (const token of scene?.tokens?.contents ?? []) addActor(token.actor);
+  }
   if (!context.actorUuid) addActor(game.actors.get(context.actorId));
   for (const id of [...(context.group?.actorIds??[]),payload.actorId,...(context.helperActorIds??[])].filter(Boolean)) addActor(game.actors.get(id));
   for(const entry of [...(context.help?.burns??[]),...(context.help?.weaknesses??[]),...(context.help?.relationships??[]),...(context.help?.fellowshipTags??[]),...(context.help?.adversity??[])])addActor(entry.actorUuid?await fromUuid(entry.actorUuid):game.actors.get(entry.actorId));

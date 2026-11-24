@@ -262,6 +262,12 @@ Detailed rolls include two mutually exclusive options:
 
 Both options respect the Detailed-roll minimum of 1 spendable Power. The resulting card displays the final total directly and explains the calculation in a tooltip. The native Power-spending tracker, Spend/Undo, and reloads use that same total. Trade selections survive Narrator approval without a timeout; changes to tags, modifiers, Might, or helpers are checked again before submission. Trade Power appears only in Detailed rolls.
 
+### Spending Power on Tags and Statuses
+
+Detailed rolls and 10+ Reaction rolls can add, scratch, or recover tags and give or reduce statuses directly from their chat cards. Choose the effect and destination in one dialog. Effect and single-use tag dialogs default to the scene, and tier choices are limited by remaining Power. Tags cost 2 Power, and statuses cost 1 Power per tier.
+
+Players can select only revealed Challenge entries. Newly created tags and statuses on Challenges are revealed automatically. Undo reverses the effect and refunds its Power.
+
 ### Make a Sacrifice
 
 Use the system's **Sacrifice** button on the full or compact Hero sheet in Game Mode. The native dialog selects the Sacrifice level and Narrator modifier and handles the dice and Miracle, Fate, or In Vain result. Sacrifice is separate from the Quick-roll dialog.
@@ -270,13 +276,14 @@ The module adds consequence buttons to native Sacrifice result cards: scratch on
 
 ### Reaction Rolls
 
-Reaction dialogs use the enhanced native Request Help workflow described above. Reaction results summarize how Power can lessen Consequences.
+Reaction dialogs use the enhanced native Request Help workflow described above. Their chat cards provide spending controls for:
 
-On a 10+:
+- Prevent a tag from being added — 2 Power.
+- Prevent the loss of a tag — 2 Power.
+- Avoid incoming status — 1 Power per tier.
+- Avoid losing existing status — 1 Power per tier.
 
-- Power may also be spent on an appropriate Effect.
-- The displayed Power receives an automatic +1 bonus.
-- The Power tooltip explains the bonus.
+The prevention buttons track Power spent. On a 10+, the card also offers the normal effect buttons and includes the automatic +1 Power bonus.
 
 ## Improved Chat Cards
 

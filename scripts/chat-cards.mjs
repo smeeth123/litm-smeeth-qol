@@ -1,3 +1,4 @@
+import { rollSpendingState } from "./effect-spending.mjs";
 import { bindSpending } from "./single-use-tags.mjs";
 
 const MODULE_ID = "litm-smeeth-qol";
@@ -81,9 +82,10 @@ export function cleanResultCard(message, root) {
       }[button.dataset.spendOption] ?? "";
     }
   }
-  if (spending) {
+  if (spending || type === "reaction") {
     const label = root.querySelector(".detailed-spend-header > span");
     if (label) label.textContent = "Power remaining";
     bindSpending(message, root);
+    if (type === "reaction" && rollSpendingState(message)?.canReact) root.querySelector(".power-counter")?.remove();
   }
 }

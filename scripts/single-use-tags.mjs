@@ -7,7 +7,7 @@ import { applyUncannyManual, configureUncannyUsage, applyRepelWitchery, captureU
 import { applySignatureMove, captureRelicSignatures } from "./relic-improvements.mjs";
 import { applyProdigiousAction, captureProdigiousThemes } from "./prodigious-improvements.mjs";
 import { applyAppliedExpertise, captureKnowledgeThemes, promptAppliedExpertise } from "./knowledge-improvements.mjs";
-import { applyInfluenceAction, captureInfluenceThemes, followMeEnabled, canSpendInfluencePower, renderInfluencePowerCard } from "./influence-improvements.mjs";
+import { applyInfluenceAction, captureInfluenceThemes, followMeEnabled, renderInfluencePowerCard } from "./influence-improvements.mjs";
 import { applyDutyAction, captureDutyThemes, reconcileDutyReroll } from "./duty-improvements.mjs";
 import { applySkillBookkeeping, captureSkillMistakes } from "./skill-improvements.mjs";
 import { applyPersonalityAction, invokedThemeSources } from "./personality-improvements.mjs";
@@ -18,6 +18,7 @@ import { applyCatchMeWhenIFall, registerDevotionSocket } from "./devotion-improv
 import { installHelpRollState, captureHelpBookkeeping, applyHelpBookkeeping } from "./help-bookkeeping.mjs";
 import { applyLuckyBastard, applyVirtuoso } from "./lucky-bastard.mjs";
 import { applyMonstrosityOperation, configureMonstrosityOperations, captureMonstrosityThemes, applySurgeConsequences } from "./monstrosity-improvements.mjs";
+import { revealChallengeEntry, rollSpendingState, spendingFlag, canSpendRollPower, allowedSpendingOptions, REACTION_OPTIONS, promptRollEffect, promptReactionPrevention, applyRollEffect, renderSpendingCard, renderReactionSpending, decoratePendingEffects } from "./effect-spending.mjs";
 const MODULE_ID = "litm-smeeth-qol";
 const SYSTEM_ID = "mist-engine-fvtt";
 const RECORDS = "singleUseTagRecords";
@@ -143,8 +144,18 @@ async function updateActorRecord(actor, id, state, { messageUuid } = {}) {
 async function applySpend(payload, user) {
   const message = await fromUuid(payload.messageUuid);
   if (!message || !(user?.isGM || authorId(message) === user?.id)) throw new Error("You cannot change this roll's spending.");
-  const state = clone(message.getFlag(SYSTEM_ID, "detailedSpend"));
-  if (!canSpendInfluencePower(state)) throw new Error("This Detailed roll has no Power to spend.");
+  const state = clone(rollSpendingState(message));
+  if (!state) throw new Error("This roll has no Power tracker.");
+  const save = async next => {
+    const content = await renderSpendingCard(message, next, renderNativeCard, spendOptions);
+    await message.update({ content, [spendingFlag(next)]: next });
+  };
+  const selectedEntry = state.entries?.find(entry => entry.id === payload.entryId);
+  if (payload.action === "retryEffect" || (payload.action === "undo" && selectedEntry?.qolEffect)
+      || (payload.action === "spend" && ["tag", "status"].includes(payload.optionId))) {
+    return applyRollEffect(payload, user, message, state, save);
+  }
+  if (payload.action === "spend" && !canSpendRollPower(state)) throw new Error("This roll has no Power to spend.");
   state.entries ??= [];
   let actor = ChatMessage.getSpeakerActor(message.speaker);
   // The author can direct their effect to another visible character through
@@ -154,9 +165,10 @@ async function applySpend(payload, user) {
       || target.testUserPermission(user, "LIMITED")
       || sceneTagRecipients(rollScene(message), user).some(actor => actor.uuid === target.uuid))));
   let createdId;
+  let createdOnChallenge;
   let removed;
   if (payload.action === "pushLuck") {
-    if (state.consequenceResult !== 1) throw new Error("Push Your Luck requires a 10+ Detailed result.");
+    if (state.reaction || state.consequenceResult !== 1) throw new Error("Push Your Luck requires a 10+ Detailed result.");
     if (state.pushYourLuck) return false;
     state.total += 1;
     state.numPowerTags = state.total;
@@ -185,9 +197,16 @@ async function applySpend(payload, user) {
       entry.label = game.i18n.format("MIST_ENGINE.DETAILED_SPEND.StatusEntry", { tier: entry.tier });
     } else state.entries.splice(index, 1);
   } else {
-    const option = spendOptions.find(option => option.id === payload.optionId);
+    const option = allowedSpendingOptions(state, spendOptions).find(option => option.id === payload.optionId);
     if (!option || option.cost > remainingPower(state)) throw new Error("There is not enough Power remaining.");
-    if (option.id === "singleUse") {
+    if (REACTION_OPTIONS.some(entry => entry.id === option.id)) {
+      const tiers = option.tiered ? Number(payload.tiers) : 1;
+      if (!Number.isInteger(tiers) || tiers < 1 || tiers > 6) throw new Error("Choose between 1 and 6 tiers.");
+      const cost = option.cost * tiers;
+      if (cost > remainingPower(state)) throw new Error("There is not enough Power remaining.");
+      state.entries.push({ id: foundry.utils.randomID(), type: option.id, cost,
+        label: `${option.label}${option.tiered ? ` (${tiers} tier${tiers === 1 ? '' : 's'})` : ''}` });
+    } else if (option.id === "singleUse") {
       if (remainingPower(state) !== 1 && !followMeEnabled(message)) throw new Error("Create a single-use tag only when exactly 1 Power remains, or use Follow Me!.");
       const name = String(payload.name ?? "").trim();
       if (!name || name.length > 200) throw new Error("Enter a tag name of 1–200 characters.");
@@ -217,9 +236,10 @@ async function applySpend(payload, user) {
       const records = allRecords(actor);
       records.push({ id: createdId, name, schemaVersion: 2, state: "available", sourceMessage: message.uuid });
       const tags = clone(actor.system.floatingTagsAndStatuses ?? []);
-      tags.push({ [TAG_ID]: createdId, name, value: 0, isStatus: false, burned: false, toBurn: false,
+      tags.push({ [TAG_ID]: createdId, ...(actor.type === "litm-npc" ? { litmQolChallengeOverlayId: createdId } : {}), name, value: 0, isStatus: false, burned: false, toBurn: false,
         selected: false, positive: true, markings: Array(6).fill(false), might: 0, mightIcon: "adventure" });
       await actor.update({ "system.floatingTagsAndStatuses": tags, ...recordUpdates(records) });
+      if (actor.type === "litm-npc") createdOnChallenge = actor;
       state.entries.push({ id: foundry.utils.randomID(), type: "singleUse", cost: 1,
         label: `Single-use tag: ${name} (${actor.type === "scene-data" ? game.scenes.get(actor.system.sceneKey)?.name ?? "Scene" : actor.name})`, qolSingleUseId: createdId, actorUuid: actor.uuid });
     } else if (option.kind === "status") {
@@ -229,8 +249,8 @@ async function applySpend(payload, user) {
     } else state.entries.push({ id: foundry.utils.randomID(), type: option.id, cost: option.cost, label: game.i18n.localize(option.labelKey) });
   }
   try {
-    const content = await renderNativeCard(state);
-    await message.update({ content, [`flags.${SYSTEM_ID}.detailedSpend`]: state });
+    if (createdOnChallenge) await revealChallengeEntry(rollScene(message), createdOnChallenge, createdId);
+    await save(state);
   } catch (error) {
     // Actor + chat message cannot be one database transaction. Compensate only
     // this operation's tag if the message write fails, preserving other tags.
@@ -362,15 +382,17 @@ function reportError(error) {
 }
 
 export function bindSpending(message, root) {
-  const state = message.getFlag(SYSTEM_ID, "detailedSpend");
+  const state = rollSpendingState(message);
   if (!state) return;
+  renderReactionSpending(message, root, state, spendOptions);
+  decoratePendingEffects(state, root);
   const editable = message.isAuthor || game.user.isGM;
   const pushLuck = root.querySelector("[data-push-your-luck]");
   if (pushLuck) pushLuck.disabled = !editable;
   const singleUse = root.querySelector('[data-spend-option="singleUse"]');
   if (singleUse) {
     const follow = followMeEnabled(message);
-    singleUse.disabled = !editable || !canSpendInfluencePower(state) || (follow ? remainingPower(state) < 1 : remainingPower(state) !== 1);
+    singleUse.disabled = !editable || !canSpendRollPower(state) || (follow ? remainingPower(state) < 1 : remainingPower(state) !== 1);
     singleUse.dataset.tooltip = follow ? "Follow Me!: create a single-use story tag for 1 Power. You can repeat this while Power remains."
       : "Create a single-use story tag with your final 1 Power. Removed when invoked; cannot be burned.";
   }
@@ -389,7 +411,7 @@ export function bindSpending(message, root) {
   // the same serialized route, so simultaneous GM/player clicks cannot lose
   // a single-use allocation or spend its last Power twice.
   root.addEventListener("click", async event => {
-    const button = event.target.closest("[data-spend-option], [data-spend-undo], [data-push-your-luck]");
+    const button = event.target.closest("[data-spend-option], [data-spend-undo], [data-push-your-luck], [data-effect-retry]");
     if (!button || !root.contains(button)) return;
     event.preventDefault(); event.stopImmediatePropagation();
     if (!editable || button.disabled || button.getAttribute("aria-disabled") === "true" || busyMessages.has(message.uuid)) return;
@@ -397,17 +419,26 @@ export function bindSpending(message, root) {
     root.classList.add("litm-qol-spending-busy");
     try {
       let payload = { messageUuid: message.uuid };
-      if (button.hasAttribute("data-push-your-luck")) {
+      if (button.dataset.effectRetry) {
+        payload = { ...payload, action: "retryEffect", entryId: button.dataset.effectRetry };
+      } else if (button.hasAttribute("data-push-your-luck")) {
         payload.action = button.dataset.pushYourLuck === "undo" ? "undoPushLuck" : "pushLuck";
         if (button.dataset.pushLuckGrant) payload.grantId = button.dataset.pushLuckGrant;
       } else if (button.dataset.spendOption) {
         payload = { ...payload, action: "spend", optionId: button.dataset.spendOption };
-        if (payload.optionId === "singleUse") {
+        if (["tag", "status"].includes(payload.optionId)) {
+          const result = await promptRollEffect(message, payload.optionId);
+          if (!result) return;
+          Object.assign(payload, result);
+        } else if (REACTION_OPTIONS.some(option => option.id === payload.optionId)) {
+          const result = await promptReactionPrevention(REACTION_OPTIONS.find(option => option.id === payload.optionId), remainingPower(rollSpendingState(message)));
+          if (!result) return;
+          Object.assign(payload, result);
+        } else if (payload.optionId === "singleUse") {
           let result;
           const scene = rollScene(message);
           const recipients = sceneTagRecipients(scene).filter(actor => owner(actor, game.user) || game.users.activeGM);
-          const defaultActor = ChatMessage.getSpeakerActor(message.speaker);
-          const recipientField = `<label>Add tag to<select name="destination">${recipients.map(actor => `<option value="actor:${actor.uuid}"${actor.uuid === defaultActor?.uuid ? " selected" : ""}>${foundry.utils.escapeHTML(actor.name)}${actor.isToken ? ` (${foundry.utils.escapeHTML(actor.token?.name ?? "token")})` : ""}</option>`).join("")}${scene ? `<option value="scene:${scene.id}">Scene: ${foundry.utils.escapeHTML(scene.name)}</option>` : ""}</select></label>`;
+          const recipientField = `<label>Add tag to<select name="destination">${scene ? `<option value="scene:${scene.id}" selected>Scene: ${foundry.utils.escapeHTML(scene.name)}</option>` : ""}${recipients.map(actor => `<option value="actor:${actor.uuid}">${foundry.utils.escapeHTML(actor.name)}${actor.isToken ? ` (${foundry.utils.escapeHTML(actor.token?.name ?? "token")})` : ""}</option>`).join("")}</select></label>`;
           if (!recipients.length && !scene) throw new Error("No character or scene is available to receive the tag.");
           try { result = await foundry.applications.api.DialogV2.prompt({
             window: { title: "Create Single-Use Story Tag" }, classes: ["litm-qol-system-dialog"],
@@ -423,7 +454,7 @@ export function bindSpending(message, root) {
         }
       } else {
         const index = Number(button.dataset.spendUndo);
-        const entry = message.getFlag(SYSTEM_ID, "detailedSpend").entries[index];
+        const entry = rollSpendingState(message).entries[index];
         if (!entry) return;
         payload = { ...payload, action: "undo", index, entryId: entry.id, fingerprint: JSON.stringify(entry) };
       }
